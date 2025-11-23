@@ -1,6 +1,6 @@
 name: pdf_master
 description: "PDF Viewer Powered By Pdfium."
-version: 0.0.3
+version: 0.0.4
 homepage: https://github.com/chengjie-jlu/pdf_master
 repository: https://github.com/chengjie-jlu/pdf_master
 

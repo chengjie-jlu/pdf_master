@@ -38,7 +38,7 @@ https://github.com/user-attachments/assets/5e9c1541-2053-47f4-bc04-d99aa48637ae
 
 ```yaml
 
-pdf_master: 0.0.1
+pdf_master: 0.0.4
 
 ```
 
@@ -46,7 +46,7 @@ pdf_master: 0.0.1
 
 ```dart
 
-await PdfMaster.instance.initRenderWorker()
+await PdfMaster.instance.init()
 
 ```
 
@@ -77,7 +77,7 @@ Navigator.of(context).push(
 
 ### 查看器配置
 
-你可以通过 [PdfMaster](lib/pdf_master_config.dart) 来自定义查看器的一些设置，比如
+你可以通过 [PdfMaster](lib/pdf_master.dart) 来自定义查看器的一些设置，比如
 
 * 深色模式与颜色主题
 * 多语言

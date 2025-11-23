@@ -16,7 +16,7 @@ void main() {
 
 Future<void> initPdfMaster() async {
   final configImpl = PdfMasterConfigImpl();
-  await PdfMaster.instance.initRenderWorker();
+  await PdfMaster.instance.init();
   PdfMaster.instance.darkModeNotifier = darkModeNotifier;
   PdfMaster.instance.shareHandler = configImpl;
   PdfMaster.instance.filePickerHandler = configImpl;

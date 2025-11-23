@@ -137,8 +137,7 @@ class PdfMaster {
 
   ValueNotifier<bool> darkModeNotifier = ValueNotifier(false);
 
-  /// 初始化渲染工作器
-  Future<void> initRenderWorker() async {
+  Future<void> init() async {
     await pdfRenderWorker.init();
     final localizationProvider = _DefaultLocalizationProvider();
     localizationProvider._loadLocalizations();

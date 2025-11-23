@@ -35,7 +35,7 @@ Add pdf_master to your `pubspec.yaml`:
 
 ```yaml
 
-pdf_master: 0.0.1
+pdf_master: 0.0.4
 
 ```
 
@@ -43,7 +43,7 @@ First, initialize the viewer:
 
 ```dart
 
-await PdfMaster.instance.initRenderWorker()
+await PdfMaster.instance.init()
 
 ```
 
@@ -75,7 +75,7 @@ Navigator.of(context).push(
 
 ## Configuration
 
-Customize the viewer through [PdfMaster](lib/pdf_master_config.dart):
+Customize the viewer through [PdfMaster](lib/pdf_master.dart):
 
 * Dark mode and color themes
 * Multi-language support
