@@ -1,0 +1,21 @@
+{
+  "appName": "PDFMaster",
+  "settings": "Settings",
+  "noFilesHint": "Click the plus button to choose a PDF file to open",
+  "darkMode": "Dark Mode",
+  "followSystem": "Follow System",
+  "fileExists": "File Exists",
+  "fileExistsMessage": "This file already exists. Do you want to overwrite it?",
+  "cancel": "Cancel",
+  "overwrite": "Overwrite",
+  "pickFile": "Pick File",
+  "delete": "Delete",
+  "share": "Share",
+  "deleteConfirm": "Confirm Deletion?",
+  "sortByName": "Sort By Name",
+  "sortByTime": "Sort By Time",
+  "sortBySize": "Sort By Size",
+  "editFiles": "Edit Files",
+  "deleteWaring": "This action cannot be undone",
+  "openSource": "Open Code Source License"
+}

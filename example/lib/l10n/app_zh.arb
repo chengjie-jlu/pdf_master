@@ -1,0 +1,21 @@
+{
+  "appName": "PDF大师",
+  "settings": "设置",
+  "noFilesHint": "点击加号按钮以选择一个 PDF 文件打开",
+  "darkMode": "深色模式",
+  "followSystem": "跟随系统",
+  "fileExists": "文件已存在",
+  "fileExistsMessage": "该文件已存在，是否要覆盖原文件？",
+  "cancel": "取消",
+  "overwrite": "覆盖",
+  "pickFile": "选择文件",
+  "delete": "删除",
+  "share": "分享",
+  "deleteConfirm": "确认删除?",
+  "sortByName": "按名称排序",
+  "sortByTime": "按时间排序",
+  "sortBySize": "按大小排序",
+  "editFiles": "编辑文件",
+  "deleteWaring": "此操作无法撤销",
+  "openSource": "开放源代码协议"
+}
