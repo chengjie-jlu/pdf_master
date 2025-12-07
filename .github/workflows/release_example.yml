@@ -1,0 +1,86 @@
+name: Build and Release Android Example
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main  # Trigger when you push this workflow file to main
+
+permissions:
+  contents: write
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: ./example
+
+    steps:
+      - name: Checkout Specific Branch
+        uses: actions/checkout@v4
+        with:
+          ref: 'zoom-view-upstream-double-tap-zoom'
+
+      - name: Set Up Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'oracle'
+          java-version: '17'
+          cache: gradle
+
+      - name: Set Up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.29.0'
+          channel: 'stable'
+          cache: true
+
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Generate Dummy Keystore
+        run: |
+          keytool -genkey -v -keystore android/app/keystore.jks \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -alias upload \
+            -storepass 0123456789 -keypass 0123456789 \
+            -dname "CN=Test,O=Test,C=US"
+
+          echo "storePassword=0123456789" > android/key.properties
+          echo "keyPassword=0123456789" >> android/key.properties
+          echo "keyAlias=upload" >> android/key.properties
+          echo "storeFile=keystore.jks" >> android/key.properties
+
+      - name: Build APK
+        run: flutter build apk --release --split-per-abi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-apks
+          path: example/build/app/outputs/flutter-apk/*.apk
+
+  create-release:
+    needs: build-android
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: android-apks
+          path: apks
+
+      - name: Generate Release Tag
+        id: tag
+        run: |
+          echo "release_tag=build-${{ github.run_number }}" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.tag.outputs.release_tag }}
+          target_commitish: 'zoom-view-upstream-double-tap-zoom'
+          files: apks/*.apk
+          draft: false
+          prerelease: false
