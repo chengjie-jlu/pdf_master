@@ -17,5 +17,6 @@
   "sortBySize": "按大小排序",
   "editFiles": "编辑文件",
   "deleteWaring": "此操作无法撤销",
-  "openSource": "开放源代码协议"
+  "openSource": "开放源代码协议",
+  "immersiveMode": "沉浸模式"
 }

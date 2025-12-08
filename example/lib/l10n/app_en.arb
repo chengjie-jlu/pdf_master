@@ -17,5 +17,6 @@
   "sortBySize": "Sort By Size",
   "editFiles": "Edit Files",
   "deleteWaring": "This action cannot be undone",
-  "openSource": "Open Code Source License"
+  "openSource": "Open Code Source License",
+  "immersiveMode": "Immersive Mode"
 }
