@@ -6,7 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:pdf_master/pdf_master.dart';
 import 'package:pdf_master/src/component/bottom_bar.dart';
-import 'package:pdf_master/src/component/zoom_view.dart';
+import 'package:zoom_view/zoom_view.dart';
 
 import 'package:pdf_master/src/core/pdf_controller.dart';
 import 'package:pdf_master/src/pdf/edit/edit_tool_bar.dart';
@@ -30,6 +30,7 @@ class PDFViewerPage extends StatefulWidget {
   final bool showTitleBar;
   final bool showToolBar;
   final List<AdvancedFeature> features;
+  final bool doubleTapDragZoom;
 
   const PDFViewerPage({
     super.key,
@@ -41,6 +42,7 @@ class PDFViewerPage extends StatefulWidget {
     this.showTitleBar = true,
     this.showToolBar = true,
     this.features = AdvancedFeature.values,
+    this.doubleTapDragZoom = false,
   });
 
   @override
@@ -157,6 +159,7 @@ class _PDFViewerPageState extends State<PDFViewerPage> {
             containerKey: containerKey,
             enableEdit: widget.enableEdit,
             initialPageIndex: currentPagerIndex,
+            doubleTapDragZoom: widget.doubleTapDragZoom,
             onPageChanged: (index) => currentPagerIndex = index,
           ),
           child: PdfPageViewer(
@@ -166,6 +169,7 @@ class _PDFViewerPageState extends State<PDFViewerPage> {
             containerKey: containerKey,
             enableEdit: widget.enableEdit,
             initialPageIndex: currentPagerIndex,
+            doubleTapDragZoom: widget.doubleTapDragZoom,
             onPageChanged: (index) => currentPagerIndex = index,
           ),
         );
@@ -329,6 +333,7 @@ class PdfPageViewer extends StatefulWidget {
   final bool enableEdit;
   final int initialPageIndex;
   final ValueChanged<int>? onPageChanged;
+  final bool doubleTapDragZoom;
 
   const PdfPageViewer({
     super.key,
@@ -338,6 +343,7 @@ class PdfPageViewer extends StatefulWidget {
     required this.enableEdit,
     this.initialPageIndex = 0,
     this.onPageChanged,
+    this.doubleTapDragZoom = false,
   });
 
   @override
@@ -409,8 +415,9 @@ class _PdfPageViewerState extends State<PdfPageViewer> {
     return NotificationListener<ScrollNotification>(
       onNotification: _onNotification,
       child: ZoomListView(
+        doubleTapDrag: widget.doubleTapDragZoom,
         onScaleChanged: (scale) {
-          final newScale = 1 / scale;
+          final newScale = scale;
           if (zoomViewScale == 1.0) {
             zoomViewScale = newScale;
             scrollController.jumpTo(scrollController.offset + widget.constraints.maxWidth * 0.5);
@@ -451,6 +458,7 @@ class PdfListViewer extends StatefulWidget {
   final bool enableEdit;
   final int initialPageIndex;
   final ValueChanged<int>? onPageChanged;
+  final bool doubleTapDragZoom;
 
   const PdfListViewer({
     super.key,
@@ -460,6 +468,7 @@ class PdfListViewer extends StatefulWidget {
     required this.enableEdit,
     this.initialPageIndex = 0,
     this.onPageChanged,
+    this.doubleTapDragZoom = false,
   });
 
   @override
@@ -544,8 +553,9 @@ class _PdfListViewerState extends State<PdfListViewer> {
     return NotificationListener<ScrollNotification>(
       onNotification: _onNotification,
       child: ZoomListView(
+        doubleTapDrag: widget.doubleTapDragZoom,
         onScaleChanged: (scale) {
-          zoomViewScale = 1 / scale;
+          zoomViewScale = scale;
           widget.controller.scaleNotifier.value = zoomViewScale;
         },
         child: ListView.separated(
