@@ -204,19 +204,36 @@ class _PDFViewerPageState extends State<PDFViewerPage> {
     Widget body = Scaffold(
       resizeToAvoidBottomInset: false,
       body: NotificationListener<PdfBackgroundTapNotification>(
-        onNotification: (notification) {
+        onNotification: widget.immersive ? (notification) {
           _toggleUi();
           return true;
-        },
+        } : null,
         child: Stack(
           children: [
             Positioned.fill(
-              top: appBarHeight,
-              bottom: bottomBarHeight,
+              top: widget.immersive ? 0 : appBarHeight,
+              bottom: widget.immersive ? 0 : bottomBarHeight,
               child: LayoutBuilder(builder: _buildContent),
             ),
-            Positioned(top: 0, left: 0, right: 0, child: _appBar()),
-            Positioned(bottom: 0, left: 0, right: 0, child: _bottomBar()),
+
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeInOut,
+              top: _barsVisible ? 0 : -(appBarHeight + MediaQuery.of(context).padding.top),
+              left: 0,
+              right: 0,
+              child: _appBar(),
+            ),
+
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeInOut,
+              bottom: _barsVisible ? 0 : -(bottomBarHeight + MediaQuery.of(context).padding.bottom),
+              left: 0,
+              right: 0,
+              child: _bottomBar(),
+            ),
+
             if (fullscreen) FullScreenExitButton(onTap: () => _changeFullScreenMode(false)),
           ],
         ),

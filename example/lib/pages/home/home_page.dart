@@ -195,7 +195,12 @@ class _HomePageState extends State<HomePage> {
   void _openPdfViewerPage(String filePath) async {
     final result = await Navigator.of(
       context,
-    ).push(PDFMasterPageRouter(builder: (ctx) => PDFViewerPage(filePath: filePath, doubleTapDragZoom: true,)));
+    ).push(PDFMasterPageRouter(builder: (ctx) => PDFViewerPage(
+        filePath: filePath,
+        doubleTapDragZoom: true,
+        immersive: immersiveModeNotifier.value,
+      ))
+    );
     if (result != null && result is String) {
       _highlightedFilePath = await _copyAndSaveFile(result);
       await _refreshFileList();

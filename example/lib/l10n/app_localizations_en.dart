@@ -66,4 +66,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get openSource => 'Open Code Source License';
+
+  @override
+  String get immersiveMode => 'Immersive Mode';
 }

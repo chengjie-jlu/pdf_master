@@ -211,6 +211,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Open Code Source License'**
   String get openSource;
+
+  /// No description provided for @immersiveMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Immersive Mode'**
+  String get immersiveMode;
 }
 
 class _AppLocalizationsDelegate

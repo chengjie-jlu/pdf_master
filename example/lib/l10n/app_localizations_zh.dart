@@ -64,4 +64,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get openSource => '开放源代码协议';
+
+  @override
+  String get immersiveMode => '沉浸模式';
 }

@@ -7,16 +7,19 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 const kPrefDarkMode = 'pref_dark_mode';
 const kPrefDarkModeFollowSystem = 'pref_dark_mode_follow_system';
+const kPrefImmersiveMode = 'pref_immersive_mode';
 
 bool _darkMode = false;
 bool _darkModeFollowSystem = false;
 ValueNotifier<bool> darkModeNotifier = ValueNotifier(false);
 ValueNotifier<bool> followSystemNotifier = ValueNotifier(false);
+ValueNotifier<bool> immersiveModeNotifier = ValueNotifier(false);
 
 Future<void> initDarkModePref() async {
   final prefs = await SharedPreferences.getInstance();
   _darkMode = prefs.getBool(kPrefDarkMode) ?? false;
   _darkModeFollowSystem = prefs.getBool(kPrefDarkModeFollowSystem) ?? true;
+  immersiveModeNotifier.value = prefs.getBool(kPrefImmersiveMode) ?? false;
 
   darkModeNotifier.value = _darkMode;
   followSystemNotifier.value = _darkModeFollowSystem;
@@ -74,6 +77,12 @@ Future<void> onFollowSystemChanged(bool value) async {
       await prefs.setBool(kPrefDarkMode, systemDarkMode);
     }
   }
+}
+
+Future<void> onImmersiveModeChanged(bool value) async {
+  final prefs = await SharedPreferences.getInstance();
+  immersiveModeNotifier.value = value;
+  await prefs.setBool(kPrefImmersiveMode, value);
 }
 
 Future<void> onSystemThemeChanged() async {
@@ -171,6 +180,18 @@ class _PreferencePageState extends State<PreferencePage> {
                 title: context.localizations.followSystem,
                 value: followSystem,
                 onChanged: onFollowSystemChanged,
+              );
+            },
+          ),
+          SizedBox(height: 1),
+          ValueListenableBuilder<bool>(
+            valueListenable: immersiveModeNotifier,
+            builder: (context, immersive, _) {
+              return PreferenceSwitch(
+                prefKey: kPrefImmersiveMode,
+                title: context.localizations.immersiveMode,
+                value: immersive,
+                onChanged: onImmersiveModeChanged,
               );
             },
           ),
