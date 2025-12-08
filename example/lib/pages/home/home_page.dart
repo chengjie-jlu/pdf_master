@@ -199,6 +199,11 @@ class _HomePageState extends State<HomePage> {
         filePath: filePath,
         doubleTapDragZoom: true,
         immersive: immersiveModeNotifier.value,
+        appBarPadding: switch(appBarPaddingNotifier.value) {
+          PaddingChoice.yes => true,
+          PaddingChoice.no => false,
+          PaddingChoice.none => null,
+        },
       ))
     );
     if (result != null && result is String) {
