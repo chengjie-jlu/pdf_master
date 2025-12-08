@@ -175,11 +175,17 @@ class _EditLayerState extends State<EditLayer> {
       return;
     }
 
+    bool handled = false;
     for (final handler in _handlers) {
       final result = await handler.handleTap(details);
       if (result == GestureHandleResult.handled) {
+        handled = true;
         break;
       }
+    }
+
+    if (!handled && mounted) {
+      PdfBackgroundTapNotification().dispatch(context);
     }
   }
 

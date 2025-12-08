@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:pdf_master/pdf_master.dart';
 import 'package:pdf_master/src/core/pdf_controller.dart';
 import 'package:pdf_master/src/pdf/edit_layer.dart';
+import 'package:pdf_master/src/pdf/handlers/gesture_handler.dart';
 
 import 'search/search_highlight_layer.dart';
 
@@ -182,9 +183,15 @@ class _PdfViewCoreState extends State<PdfViewCore> {
       height: renderHeight,
       child: Stack(
         children: [
-          CustomPaint(
-            size: Size(renderWidth, renderHeight),
-            painter: PdfPainter(image: image, thumbImage: thumbImage, thumbRect: thumbRect, darkMode: darkMode),
+          GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onDoubleTap: widget.enableEdit? null:(){
+              PdfBackgroundTapNotification().dispatch(context);
+            },
+            child: CustomPaint(
+              size: Size(renderWidth, renderHeight),
+              painter: PdfPainter(image: image, thumbImage: thumbImage, thumbRect: thumbRect, darkMode: darkMode),
+            ),
           ),
           if (widget.enableEdit)
             SearchHighlightLayer(

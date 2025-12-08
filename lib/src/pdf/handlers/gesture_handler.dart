@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+class PdfBackgroundTapNotification extends Notification {}
+
 enum GestureHandleResult {
   /// 已处理，不再传递给其他处理器
   handled,

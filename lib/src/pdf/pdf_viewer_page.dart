@@ -14,6 +14,7 @@ import 'package:pdf_master/src/pdf/features/convert_image.dart';
 import 'package:pdf_master/src/pdf/features/features.dart';
 import 'package:pdf_master/src/pdf/features/image_extract.dart';
 import 'package:pdf_master/src/pdf/features/page_manage.dart';
+import 'package:pdf_master/src/pdf/handlers/gesture_handler.dart';
 import 'package:pdf_master/src/pdf/pdf_view_core.dart';
 import 'package:pdf_master/src/pdf/search/widgets.dart';
 import 'package:pdf_master/src/pdf/toc/toc.dart';
@@ -30,6 +31,7 @@ class PDFViewerPage extends StatefulWidget {
   final bool showTitleBar;
   final bool showToolBar;
   final List<AdvancedFeature> features;
+  final bool immersive;
 
   const PDFViewerPage({
     super.key,
@@ -41,6 +43,7 @@ class PDFViewerPage extends StatefulWidget {
     this.showTitleBar = true,
     this.showToolBar = true,
     this.features = AdvancedFeature.values,
+    this.immersive = false,
   });
 
   @override
@@ -81,6 +84,7 @@ class _PDFViewerPageState extends State<PDFViewerPage> {
   final appBarKey = GlobalKey();
   final bottomBarKey = GlobalKey();
   int currentPagerIndex = 0;
+  late bool _barsVisible;
 
   double get appBarHeight {
     final renderBox = appBarKey.currentContext?.findRenderObject() as RenderBox?;
@@ -97,6 +101,10 @@ class _PDFViewerPageState extends State<PDFViewerPage> {
   @override
   void initState() {
     super.initState();
+    _barsVisible = !widget.immersive;
+    if (widget.immersive) {
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    }
     _openDocument(widget.password);
     PdfMaster.instance.darkModeNotifier.addListener(_onDarkModeChanged);
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
@@ -106,8 +114,23 @@ class _PDFViewerPageState extends State<PDFViewerPage> {
   void dispose() {
     super.dispose();
     controller.dispose();
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge); 
     PdfMaster.instance.darkModeNotifier.removeListener(_onDarkModeChanged);
     SystemChrome.setPreferredOrientations([]);
+  }
+
+  void _toggleUi() {
+    setState(() {
+      _barsVisible = !_barsVisible;
+    });
+
+    if (widget.immersive) {
+      if (_barsVisible) {
+        SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+      } else {
+        SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+      }
+    }
   }
 
   void _openDocument(String password) async {
@@ -176,17 +199,23 @@ class _PDFViewerPageState extends State<PDFViewerPage> {
   Widget build(BuildContext context) {
     Widget body = Scaffold(
       resizeToAvoidBottomInset: false,
-      body: Stack(
-        children: [
-          Positioned.fill(
-            top: appBarHeight,
-            bottom: bottomBarHeight,
-            child: LayoutBuilder(builder: _buildContent),
-          ),
-          Positioned(top: 0, left: 0, right: 0, child: _appBar()),
-          Positioned(bottom: 0, left: 0, right: 0, child: _bottomBar()),
-          if (fullscreen) FullScreenExitButton(onTap: () => _changeFullScreenMode(false)),
-        ],
+      body: NotificationListener<PdfBackgroundTapNotification>(
+        onNotification: (notification) {
+          _toggleUi();
+          return true;
+        },
+        child: Stack(
+          children: [
+            Positioned.fill(
+              top: appBarHeight,
+              bottom: bottomBarHeight,
+              child: LayoutBuilder(builder: _buildContent),
+            ),
+            Positioned(top: 0, left: 0, right: 0, child: _appBar()),
+            Positioned(bottom: 0, left: 0, right: 0, child: _bottomBar()),
+            if (fullscreen) FullScreenExitButton(onTap: () => _changeFullScreenMode(false)),
+          ],
+        ),
       ),
     );
 
