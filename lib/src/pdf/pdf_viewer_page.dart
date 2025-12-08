@@ -121,7 +121,7 @@ class _PDFViewerPageState extends State<PDFViewerPage> {
     SystemChrome.setPreferredOrientations([]);
   }
 
-  void _toggleImmersiveMode() {
+  void _toggleAppBars() {
     setState(() {
       _barsVisible = !_barsVisible;
     });
@@ -164,6 +164,9 @@ class _PDFViewerPageState extends State<PDFViewerPage> {
   }
 
   Widget _buildContent(_, BoxConstraints constraints) {
+    final contentPadding = widget.immersive
+        ? EdgeInsets.zero
+        : EdgeInsets.only(top: appBarHeight, bottom: bottomBarHeight);
     switch (controller.openState) {
       case PdfOpenState.kFmtError:
       case PdfOpenState.kUnknownError:
@@ -183,6 +186,7 @@ class _PDFViewerPageState extends State<PDFViewerPage> {
             enableEdit: widget.enableEdit,
             initialPageIndex: currentPagerIndex,
             doubleTapDragZoom: widget.doubleTapDragZoom,
+            contentPadding: contentPadding,
             onPageChanged: (index) => currentPagerIndex = index,
           ),
           child: PdfPageViewer(
@@ -193,6 +197,7 @@ class _PDFViewerPageState extends State<PDFViewerPage> {
             enableEdit: widget.enableEdit,
             initialPageIndex: currentPagerIndex,
             doubleTapDragZoom: widget.doubleTapDragZoom,
+            contentPadding: contentPadding,
             onPageChanged: (index) => currentPagerIndex = index,
           ),
         );
@@ -204,15 +209,15 @@ class _PDFViewerPageState extends State<PDFViewerPage> {
     Widget body = Scaffold(
       resizeToAvoidBottomInset: false,
       body: NotificationListener<PdfBackgroundTapNotification>(
-        onNotification: widget.immersive ? (notification) {
-          _toggleImmersiveMode();
+        onNotification: (notification) {
+          _toggleAppBars();
           return true;
-        } : null,
+        },
         child: Stack(
           children: [
             Positioned.fill(
-              top: widget.immersive ? 0 : appBarHeight,
-              bottom: widget.immersive ? 0 : bottomBarHeight,
+              top: 0,
+              bottom: 0,
               child: LayoutBuilder(builder: _buildContent),
             ),
 
@@ -380,6 +385,7 @@ class PdfPageViewer extends StatefulWidget {
   final int initialPageIndex;
   final ValueChanged<int>? onPageChanged;
   final bool doubleTapDragZoom;
+  final EdgeInsets contentPadding;
 
   const PdfPageViewer({
     super.key,
@@ -390,6 +396,7 @@ class PdfPageViewer extends StatefulWidget {
     this.initialPageIndex = 0,
     this.onPageChanged,
     this.doubleTapDragZoom = false,
+    this.contentPadding = EdgeInsets.zero,
   });
 
   @override
@@ -474,7 +481,7 @@ class _PdfPageViewerState extends State<PdfPageViewer> {
           widget.controller.scaleNotifier.value = zoomViewScale;
         },
         child: ListView.builder(
-          padding: EdgeInsets.zero,
+          padding: widget.contentPadding,
           controller: scrollController,
           physics: zoomViewScale == 1.0 ? PageScrollPhysics() : null,
           scrollDirection: Axis.horizontal,
@@ -505,6 +512,7 @@ class PdfListViewer extends StatefulWidget {
   final int initialPageIndex;
   final ValueChanged<int>? onPageChanged;
   final bool doubleTapDragZoom;
+  final EdgeInsets contentPadding;
 
   const PdfListViewer({
     super.key,
@@ -515,6 +523,7 @@ class PdfListViewer extends StatefulWidget {
     this.initialPageIndex = 0,
     this.onPageChanged,
     this.doubleTapDragZoom = false,
+    this.contentPadding = EdgeInsets.zero,
   });
 
   @override
@@ -605,7 +614,10 @@ class _PdfListViewerState extends State<PdfListViewer> {
           widget.controller.scaleNotifier.value = zoomViewScale;
         },
         child: ListView.separated(
-          padding: EdgeInsets.only(top: _getListViewPaddingTop()),
+          padding: EdgeInsets.only(
+            top: _getListViewPaddingTop() + widget.contentPadding.top,
+            bottom: widget.contentPadding.bottom,
+          ),
           cacheExtent: 3 * widget.constraints.maxHeight,
           controller: scrollController,
           itemBuilder: (ctx, index) => _PdfViewBox(
