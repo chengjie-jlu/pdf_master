@@ -185,9 +185,7 @@ class _PdfViewCoreState extends State<PdfViewCore> {
         children: [
           GestureDetector(
             behavior: HitTestBehavior.translucent,
-            onDoubleTap: widget.enableEdit? null:(){
-              PdfBackgroundTapNotification().dispatch(context);
-            },
+            onTap: widget.enableEdit? null: () => PdfBackgroundTapNotification().dispatch(context),
             child: CustomPaint(
               size: Size(renderWidth, renderHeight),
               painter: PdfPainter(image: image, thumbImage: thumbImage, thumbRect: thumbRect, darkMode: darkMode),

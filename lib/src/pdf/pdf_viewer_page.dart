@@ -121,7 +121,7 @@ class _PDFViewerPageState extends State<PDFViewerPage> {
     SystemChrome.setPreferredOrientations([]);
   }
 
-  void _toggleUi() {
+  void _toggleImmersiveMode() {
     setState(() {
       _barsVisible = !_barsVisible;
     });
@@ -205,7 +205,7 @@ class _PDFViewerPageState extends State<PDFViewerPage> {
       resizeToAvoidBottomInset: false,
       body: NotificationListener<PdfBackgroundTapNotification>(
         onNotification: widget.immersive ? (notification) {
-          _toggleUi();
+          _toggleImmersiveMode();
           return true;
         } : null,
         child: Stack(
