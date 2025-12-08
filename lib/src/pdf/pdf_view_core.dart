@@ -86,6 +86,7 @@ class _PdfViewCoreState extends State<PdfViewCore> {
   }
 
   void _refreshPageBitmap() async {
+    if(!mounted) return;
     final width = MediaQuery.devicePixelRatioOf(context) * widget.constraints.maxWidth;
     final newImage = await widget.controller.renderFullPage(index: widget.index, width: width.toInt());
     pageSize = widget.controller.getPageSizeAt(widget.index);
