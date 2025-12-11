@@ -31,17 +31,37 @@ class SearchState extends ChangeNotifier {
     return null;
   }
 
-  void setResults(List<ffi_api.SearchResult> results, String searchText) {
+  void setResults(List<ffi_api.SearchResult> results, int currentPageIndex, String searchText) {
     _results = results;
     _searchText = searchText;
-    _currentIndex = results.isNotEmpty ? 0 : -1;
+    _currentIndex = -1;
     _isSearching = false;
-    notifyListeners();
 
-    // 自动跳转到第一个结果
-    if (_currentIndex >= 0 && onPageChanged != null) {
-      onPageChanged!(_results[_currentIndex].pageIndex);
+    // find the closest result to current page.
+    if (_results.isNotEmpty) {
+      int nearestIndex = 0;
+      int minDistance = (_results[0].pageIndex - currentPageIndex).abs();
+
+      for (int index = 0; index < _results.length; index++) {
+        if (_results[index].pageIndex == currentPageIndex) {
+          _currentIndex = index;
+          break;
+        }
+
+        int distance = (_results[index].pageIndex - currentPageIndex).abs();
+        if (distance < minDistance) {
+          minDistance = distance;
+          nearestIndex = index;
+        }
+      }
+      if (_currentIndex < 0) {
+        _currentIndex = nearestIndex;
+      }
     }
+    if (_currentIndex >= 0) {
+      onPageChanged?.call(_results[_currentIndex].pageIndex);
+    }
+    notifyListeners();
   }
 
   void setSearching(bool searching) {
@@ -53,11 +73,7 @@ class SearchState extends ChangeNotifier {
     if (_results.isNotEmpty && _currentIndex < _results.length - 1) {
       _currentIndex++;
       notifyListeners();
-
-      // 跳转到下一个结果所在的页面
-      if (onPageChanged != null) {
-        onPageChanged!(_results[_currentIndex].pageIndex);
-      }
+      onPageChanged?.call(_results[_currentIndex].pageIndex);
     }
   }
 
@@ -65,11 +81,7 @@ class SearchState extends ChangeNotifier {
     if (_results.isNotEmpty && _currentIndex > 0) {
       _currentIndex--;
       notifyListeners();
-
-      // 跳转到上一个结果所在的页面
-      if (onPageChanged != null) {
-        onPageChanged!(_results[_currentIndex].pageIndex);
-      }
+      onPageChanged?.call(_results[_currentIndex].pageIndex);
     }
   }
 
@@ -109,7 +121,7 @@ class _SearchToolBarState extends State<SearchToolBar> {
     widget.searchState.setSearching(true);
     try {
       final results = await widget.controller.searchTextInDocument(query.trim());
-      widget.searchState.setResults(results, query.trim());
+      widget.searchState.setResults(results, widget.controller.currentPageIndexNotifier.value, query.trim());
     } catch (e) {
       widget.searchState.setSearching(false);
       Log.e("Search", "Failed to search text: $e");

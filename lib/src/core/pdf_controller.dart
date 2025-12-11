@@ -218,6 +218,7 @@ class PdfController {
   final List<ui.Size> _pageSizes = [];
 
   final ValueNotifier<double> scaleNotifier = ValueNotifier(1.0);
+  final ValueNotifier<int> currentPageIndexNotifier = ValueNotifier(0);
   final ValueNotifier<PdfEditState> editStateNotifier = ValueNotifier(PdfEditState.kNone);
 
   late final SearchState searchState = SearchState();

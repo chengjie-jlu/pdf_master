@@ -83,7 +83,6 @@ class _PDFViewerPageState extends State<PDFViewerPage> {
   final containerKey = GlobalKey();
   final appBarKey = GlobalKey();
   final bottomBarKey = GlobalKey();
-  int currentPagerIndex = 0;
   bool _barsVisible = true;
 
   double get appBarHeight {
@@ -177,9 +176,9 @@ class _PDFViewerPageState extends State<PDFViewerPage> {
             padding: EdgeInsets.only(top: appBarHeight, bottom: bottomBarHeight),
             containerKey: containerKey,
             enableEdit: widget.enableEdit,
-            initialPageIndex: currentPagerIndex,
+            initialPageIndex: 0,
             doubleTapDragZoom: widget.doubleTapDragZoom,
-            onPageChanged: (index) => currentPagerIndex = index,
+            onPageChanged: (index) => controller.currentPageIndexNotifier.value = index,
           ),
           child: PdfPageViewer(
             key: ValueKey(MediaQuery.orientationOf(context)),
@@ -188,9 +187,9 @@ class _PDFViewerPageState extends State<PDFViewerPage> {
             padding: EdgeInsets.only(top: appBarHeight, bottom: bottomBarHeight),
             containerKey: containerKey,
             enableEdit: widget.enableEdit,
-            initialPageIndex: currentPagerIndex,
+            initialPageIndex: 0,
             doubleTapDragZoom: widget.doubleTapDragZoom,
-            onPageChanged: (index) => currentPagerIndex = index,
+            onPageChanged: (index) => controller.currentPageIndexNotifier.value = index,
           ),
         );
     }
