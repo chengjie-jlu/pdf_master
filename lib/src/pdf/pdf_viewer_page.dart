@@ -76,7 +76,7 @@ class _PDFViewerPageState extends State<PDFViewerPage> {
 class PDFLogicHelper {
   static Future<bool> saveEditBeforeAction(BuildContext context, PdfController controller) async {
     if (controller.editStateNotifier.value != PdfEditState.kEdit) {
-      return true;
+      return true; 
     }
 
     final ret = await showPdfMasterAlertDialog(
