@@ -387,6 +387,7 @@ class _PDFViewerPageInternalState extends State<_PDFViewerPageInternal> {
   void initState() {
     super.initState();
     PdfMaster.instance.darkModeNotifier.addListener(_onDarkModeChanged);
+    widget.controller.editStateNotifier.addListener(_toggleBarVisible);
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     toolActions = ToolActions(
       features: widget.features, 
