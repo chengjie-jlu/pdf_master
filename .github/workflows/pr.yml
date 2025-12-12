@@ -37,8 +37,6 @@ jobs:
       - name: Install Dependencies
         run: flutter pub get
 
-      # We keep the dummy keystore generation so we can build a signed release APK
-      # that allows reviewers to test performance accurately.
       - name: Generate Dummy Keystore
         run: |
           keytool -genkey -v -keystore android/app/keystore.jks \
