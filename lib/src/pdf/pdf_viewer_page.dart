@@ -52,23 +52,23 @@ class _PDFViewerPageState extends State<PDFViewerPage> {
   @override
   Widget build(BuildContext context) {
     return PdfDocumentLoader(
-        filePath: widget.filePath,
-        password: widget.password,
-        builder: (context, controller) {
-          return _PDFViewerPageInternal(
-            key: widget.key,
-            filePath: widget.filePath,
-            password: widget.password,
-            pageMode: widget.pageMode,
-            fullScreen: widget.fullScreen,
-            enableEdit: widget.enableEdit,
-            showTitleBar: widget.showTitleBar,
-            showToolBar: widget.showToolBar,
-            doubleTapDragZoom: widget.doubleTapDragZoom,
-            controller: controller,
-            features: widget.features,
-          );
-        },
+      filePath: widget.filePath,
+      password: widget.password,
+      builder: (context, controller) {
+        return _PDFViewerPageInternal(
+          key: widget.key,
+          filePath: widget.filePath,
+          password: widget.password,
+          pageMode: widget.pageMode,
+          fullScreen: widget.fullScreen,
+          enableEdit: widget.enableEdit,
+          showTitleBar: widget.showTitleBar,
+          showToolBar: widget.showToolBar,
+          doubleTapDragZoom: widget.doubleTapDragZoom,
+          controller: controller,
+          features: widget.features,
+        );
+      },
     );
   }
 }
@@ -76,7 +76,7 @@ class _PDFViewerPageState extends State<PDFViewerPage> {
 class PDFLogicHelper {
   static Future<bool> saveEditBeforeAction(BuildContext context, PdfController controller) async {
     if (controller.editStateNotifier.value != PdfEditState.kEdit) {
-      return true; 
+      return true;
     }
 
     final ret = await showPdfMasterAlertDialog(
@@ -114,8 +114,9 @@ class PDFLogicHelper {
 
     switch (action) {
       case AdvancedFeature.kPageManage:
-        final newFilePath = await Navigator.of(context)
-            .push<String>(PDFMasterPageRouter(builder: (ctx) => PageManagePage(controller: controller)));
+        final newFilePath = await Navigator.of(
+          context,
+        ).push<String>(PDFMasterPageRouter(builder: (ctx) => PageManagePage(controller: controller)));
         return newFilePath;
       case AdvancedFeature.kConvertImage:
         Navigator.push(context, PDFMasterPageRouter(builder: (ctx) => PageSelector(controller: controller)));
@@ -199,8 +200,8 @@ class _PdfDocumentLoaderState extends State<PdfDocumentLoader> {
 
   @override
   void dispose() {
-    controller.dispose();
     super.dispose();
+    controller.dispose();
   }
 
   void _openDocument(String password) async {
@@ -235,8 +236,7 @@ class _PdfDocumentLoaderState extends State<PdfDocumentLoader> {
     if (_isError) return const SizedBox.shrink();
 
     if (!controller.opened) {
-      return widget.loadingBuilder?.call(context) ??
-          const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return widget.loadingBuilder?.call(context) ?? const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return widget.builder(context, controller);
@@ -305,7 +305,7 @@ class PdfBottomBar extends StatelessWidget {
     required this.controller,
     required this.pageMode,
     this.isFullScreen = false,
-    this.showToolBar = true, 
+    this.showToolBar = true,
     required this.toolActions,
   });
 
@@ -319,11 +319,7 @@ class PdfBottomBar extends StatelessWidget {
         switch (editMode) {
           case PdfEditState.kEdit:
           case PdfEditState.kNone:
-            return BottomToolbar(
-              pageMode: pageMode,
-              toolActions: toolActions,
-              
-            );
+            return BottomToolbar(pageMode: pageMode, toolActions: toolActions);
           case PdfEditState.kSearch:
             return SearchBottomBar(controller: controller, searchState: controller.searchState);
         }
@@ -354,7 +350,7 @@ class _PDFViewerPageInternal extends StatefulWidget {
     this.showTitleBar = true,
     this.showToolBar = true,
     this.doubleTapDragZoom = false,
-    this.features = AdvancedFeature.values, 
+    this.features = AdvancedFeature.values,
     required this.controller,
   });
 
@@ -390,7 +386,7 @@ class _PDFViewerPageInternalState extends State<_PDFViewerPageInternal> {
     widget.controller.editStateNotifier.addListener(_toggleBarVisible);
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     toolActions = ToolActions(
-      features: widget.features, 
+      features: widget.features,
       onToolAction: (action) {
         PDFLogicHelper.onToolAction(
           context,
@@ -408,12 +404,12 @@ class _PDFViewerPageInternalState extends State<_PDFViewerPageInternal> {
 
   @override
   void dispose() {
-    widget.controller.dispose();
-    widget.controller.editStateNotifier.removeListener(_toggleBarVisible);
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-    PdfMaster.instance.darkModeNotifier.removeListener(_onDarkModeChanged);
-    SystemChrome.setPreferredOrientations([]);
     super.dispose();
+    widget.controller.editStateNotifier.removeListener(_toggleBarVisible);
+    PdfMaster.instance.darkModeNotifier.removeListener(_onDarkModeChanged);
+    
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    SystemChrome.setPreferredOrientations([]);
   }
 
   void _onDarkModeChanged() {
@@ -498,12 +494,7 @@ class _PDFViewerPageInternalState extends State<_PDFViewerPageInternal> {
         },
         child: Stack(
           children: [
-            Positioned.fill(
-              child: GestureDetector(
-                onTap: _toggleBarVisible,
-                child: LayoutBuilder(builder: _buildContent),
-              ),
-            ),
+            Positioned.fill(child: LayoutBuilder(builder: _buildContent)),
             AnimatedPositioned(
               duration: const Duration(milliseconds: 300),
               curve: Curves.easeInOut,
@@ -535,11 +526,10 @@ class _PDFViewerPageInternalState extends State<_PDFViewerPageInternal> {
               ),
             ),
 
-            if (fullscreen)
-              FullScreenExitButton(onTap: () => _changeFullScreenMode(false)),
+            if (fullscreen) FullScreenExitButton(onTap: () => _changeFullScreenMode(false)),
           ],
         ),
-      )
+      ),
     );
 
     return PopScope(
@@ -563,12 +553,10 @@ class FullScreenExitButton extends StatelessWidget {
       top: top,
       right: right,
       child: Container(
-        margin: EdgeInsets.only(
-            right: right > 24 ? 0 : max(24 - right, 0), top: top > 24 ? 0 : max(24 - top, 0)),
+        margin: EdgeInsets.only(right: right > 24 ? 0 : max(24 - right, 0), top: top > 24 ? 0 : max(24 - top, 0)),
         width: 48,
         height: 48,
-        decoration: BoxDecoration(
-            color: Colors.black.withAlpha(128), borderRadius: BorderRadius.circular(24)),
+        decoration: BoxDecoration(color: Colors.black.withAlpha(128), borderRadius: BorderRadius.circular(24)),
         child: IconButton(
           onPressed: onTap,
           icon: Icon(Icons.close, color: Colors.white, size: 28),

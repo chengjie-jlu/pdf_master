@@ -5,10 +5,10 @@ class PdfBackgroundTapNotification extends Notification {}
 enum GestureHandleResult {
   /// 已处理，不再传递给其他处理器
   handled,
-  
+
   /// 未处理，继续传递给下一个处理器
   notHandled,
-  
+
   /// 已处理，但允许其他处理器也处理
   handledContinue,
 }

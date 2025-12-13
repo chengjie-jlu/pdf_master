@@ -56,7 +56,7 @@ class _DefaultLocalizationProvider implements LocalizationProvider {
         final languageCode = entry.key;
         final localeData = entry.value as Map<String, dynamic>;
         _allLocalizations[languageCode] = localeData.map<String, String>(
-              (key, value) => MapEntry(key.toString(), value.toString()),
+          (key, value) => MapEntry(key.toString(), value.toString()),
         );
       }
     } catch (e) {

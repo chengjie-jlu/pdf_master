@@ -2,27 +2,47 @@ import 'dart:ui';
 
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
+import 'package:pdf_master/src/core/ffi_define.dart';
 import 'package:pdf_master/src/core/pdf_controller.dart';
-import 'package:pdf_master/src/pdf/context/anno_context_menu.dart';
+import 'package:pdf_master/src/core/pdf_ffi_api.dart';
+import 'package:pdf_master/src/pdf/context/context_menu.dart';
 import 'package:pdf_master/src/pdf/context/color_picker.dart';
-import 'package:pdf_master/src/pdf/context/context_menu_constants.dart';
 import 'package:pdf_master/src/pdf/handlers/gesture_handler.dart';
+import 'package:pdf_master/src/utils/log.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 const int kIndexNotSet = -1;
 const double _sameLineThreshold = 0.6;
 
 class _AnnotationSelectionInfo {
-  int annotIndex = kIndexNotSet;
+  List<AnnotationInfo> annotations = [];
   List<Rect> displayBounds = [];
 
-  Rect get firstLine => displayBounds.first;
+  /// 获取整个选中区域的边界框
+  Rect get boundingBox {
+    if (displayBounds.isEmpty) return Rect.zero;
 
-  Rect get lastLine => displayBounds.last;
+    double left = double.infinity;
+    double top = double.infinity;
+    double right = double.negativeInfinity;
+    double bottom = double.negativeInfinity;
 
-  bool get hasSelection => annotIndex > kIndexNotSet && displayBounds.isNotEmpty;
+    for (final rect in displayBounds) {
+      if (rect.left < left) left = rect.left;
+      if (rect.top < top) top = rect.top;
+      if (rect.right > right) right = rect.right;
+      if (rect.bottom > bottom) bottom = rect.bottom;
+    }
+
+    return Rect.fromLTRB(left, top, right, bottom);
+  }
+
+  bool get hasSelection => annotations.isNotEmpty && displayBounds.isNotEmpty;
+
+  bool get isHyperlink => annotations.length == 1 && annotations[0].annotType == kPdfAnnotLink;
 
   void clear() {
-    annotIndex = kIndexNotSet;
+    annotations.clear();
     displayBounds.clear();
   }
 }
@@ -32,19 +52,23 @@ class AnnotationSelectionHandler extends GestureHandler {
   final PdfController controller;
   final int pageIndex;
   final Size pageSize;
-  final double Function() getRenderWidth;
-  final double Function() getRenderHeight;
+  final double renderWidth;
+  final double renderHeight;
   final VoidCallback onPdfContentChanged;
   final VoidCallback onStateChanged;
 
   final _annotSelection = _AnnotationSelectionInfo();
 
+  // 缓存的页面标注信息
+  List<AnnotationInfo> _cachedLinks = [];
+  List<AnnotationInfo> _cachedHighlights = [];
+
   AnnotationSelectionHandler({
     required this.controller,
     required this.pageIndex,
     required this.pageSize,
-    required this.getRenderWidth,
-    required this.getRenderHeight,
+    required this.renderWidth,
+    required this.renderHeight,
     required this.onPdfContentChanged,
     required this.onStateChanged,
   });
@@ -64,6 +88,11 @@ class AnnotationSelectionHandler extends GestureHandler {
     handleTap(TapUpDetails(kind: PointerDeviceKind.touch, localPosition: screenPosition));
   }
 
+  void refreshAnnotationInfo() async {
+    _cachedLinks = await controller.getPageLinks(pageIndex);
+    _cachedHighlights = await controller.getPageHighlights(pageIndex);
+  }
+
   @override
   Future<GestureHandleResult> handleTap(TapUpDetails details) async {
     if (_annotSelection.hasSelection) {
@@ -71,33 +100,74 @@ class AnnotationSelectionHandler extends GestureHandler {
       return GestureHandleResult.handled;
     }
 
-    // 尝试选中标注
     final localPosition = details.localPosition;
-    final renderWidth = getRenderWidth();
-    final renderHeight = getRenderHeight();
-
     final pdfX = localPosition.dx / renderWidth * pageSize.width;
     final pdfY = pageSize.height - (localPosition.dy / renderHeight * pageSize.height);
 
-    // 计算容差：在屏幕上约 12 像素的点击范围，转换为 PDF 坐标
-    // 这样即使标注很小，也能有一个合理的点击区域
     final toleranceInScreen = 12.0;
     final toleranceInPdf = toleranceInScreen / renderWidth * pageSize.width;
 
-    final annotInfo = await controller.getAnnotationAtPosition(pageIndex, pdfX, pdfY, tolerance: toleranceInPdf);
+    // 从缓存中查找匹配的标注
+    final annotInfos = <AnnotationInfo>[];
 
-    if (annotInfo != null && annotInfo.rects.isNotEmpty) {
-      List<Rect> displayBounds = [];
-      for (final pdfRect in annotInfo.rects) {
-        final left = pdfRect.left / pageSize.width * renderWidth;
-        final top = (pageSize.height - pdfRect.bottom) / pageSize.height * renderHeight;
-        final width = pdfRect.width / pageSize.width * renderWidth;
-        final height = pdfRect.height / pageSize.height * renderHeight;
-        displayBounds.add(Rect.fromLTWH(left, top, width, height));
+    // 检查链接标注
+    for (final linkInfo in _cachedLinks) {
+      bool hit = false;
+      for (final pdfRect in linkInfo.rects) {
+        if (pdfX >= pdfRect.left - toleranceInPdf &&
+            pdfX <= pdfRect.right + toleranceInPdf &&
+            pdfY <= pdfRect.bottom + toleranceInPdf &&
+            pdfY >= pdfRect.top - toleranceInPdf) {
+          hit = true;
+          break;
+        }
+      }
+      if (hit) {
+        annotInfos.add(linkInfo);
+        break;
+      }
+    }
+
+    // 检查高亮标注
+    for (final highlightInfo in _cachedHighlights) {
+      // 计算整个高亮标注的边界
+      double minLeft = double.infinity;
+      double maxRight = double.negativeInfinity;
+      double minBottom = double.infinity;
+      double maxTop = double.negativeInfinity;
+
+      for (final pdfRect in highlightInfo.rects) {
+        if (pdfRect.left < minLeft) minLeft = pdfRect.left;
+        if (pdfRect.right > maxRight) maxRight = pdfRect.right;
+        if (pdfRect.bottom < minBottom) minBottom = pdfRect.bottom;
+        if (pdfRect.top > maxTop) maxTop = pdfRect.top;
       }
 
-      _annotSelection.displayBounds = _mergeRectsInSameLine(displayBounds);
-      _annotSelection.annotIndex = annotInfo.annotIndex;
+      if (pdfX >= minLeft - toleranceInPdf &&
+          pdfX <= maxRight + toleranceInPdf &&
+          pdfY <= minBottom + toleranceInPdf &&
+          pdfY >= maxTop - toleranceInPdf) {
+        annotInfos.add(highlightInfo);
+      }
+    }
+
+    if (annotInfos.isNotEmpty) {
+      // 存储所有选中的标注
+      _annotSelection.annotations = annotInfos;
+
+      // 计算所有标注的显示边界
+      List<Rect> allDisplayBounds = [];
+      for (final annotInfo in annotInfos) {
+        for (final pdfRect in annotInfo.rects) {
+          final left = pdfRect.left / pageSize.width * renderWidth;
+          final top = (pageSize.height - pdfRect.bottom) / pageSize.height * renderHeight;
+          final width = pdfRect.width / pageSize.width * renderWidth;
+          final height = pdfRect.height / pageSize.height * renderHeight;
+          allDisplayBounds.add(Rect.fromLTWH(left, top, width, height));
+        }
+      }
+
+      _annotSelection.displayBounds = _mergeRectsInSameLine(allDisplayBounds);
       onStateChanged();
       return GestureHandleResult.handled;
     }
@@ -112,7 +182,6 @@ class AnnotationSelectionHandler extends GestureHandler {
     }
 
     final children = <Widget>[];
-    final renderWidth = getRenderWidth();
     final boundingBox = _getBoundingBox(_annotSelection.displayBounds);
 
     // 虚线边框
@@ -132,37 +201,60 @@ class AnnotationSelectionHandler extends GestureHandler {
                 dashPattern: [adjustedDashLength, adjustedDashSpace],
                 padding: EdgeInsets.zero,
               ),
-              child: SizedBox(width: boundingBox.width, height: boundingBox.height),
+              child: Container(
+                color: Colors.blue.withAlpha(_annotSelection.isHyperlink ? 76 : 0),
+                width: boundingBox.width,
+                height: boundingBox.height,
+              ),
             ),
           );
         },
       ),
     );
 
-    // 上下文菜单
-    children.add(
-      ValueListenableBuilder(
-        valueListenable: controller.scaleNotifier,
-        builder: (context, scale, child) {
-          final menuPos = _getContextMenuPosition(
-            scale,
-            _annotSelection.firstLine,
-            _annotSelection.lastLine,
-            renderWidth,
-          );
-          return Positioned(
-            top: menuPos.dy,
-            left: menuPos.dx,
-            width: kContextMenuWidth,
-            child: AnnoContextMenu(
+    // 根据标注类型确定需要显示的操作
+    final linkAnnots = _annotSelection.annotations
+        .where((a) => a.annotType == kPdfAnnotLink && a.linkType != null)
+        .toList();
+    final hasHighlightAnnots = _annotSelection.annotations.any((a) => a.annotType == kPdfAnnotHighlight);
+
+    final actions = <MenuAction>[];
+
+    // 如果有高亮标注，添加删除和编辑操作
+    if (hasHighlightAnnots) {
+      actions.add(MenuAction.kDelete);
+      actions.add(MenuAction.kEdit);
+    }
+
+    // 如果有链接标注，添加跳转或打开操作
+    if (linkAnnots.isNotEmpty) {
+      final firstLink = linkAnnots.first;
+      if (firstLink.linkType == PdfLinkType.goto) {
+        actions.add(MenuAction.kJump);
+      } else if (firstLink.linkType == PdfLinkType.uri) {
+        actions.add(MenuAction.kOpenWebUrl);
+      }
+    }
+
+    // 显示上下文菜单
+    if (actions.isNotEmpty) {
+      children.add(
+        ValueListenableBuilder(
+          valueListenable: controller.scaleNotifier,
+          builder: (context, scale, child) {
+            return ContextMenu(
               scale: scale,
               showContextMenu: true,
-              onAction: (action) => _onAnnoContextAction(context, action),
-            ),
-          );
-        },
-      ),
-    );
+              actions: actions,
+              onAction: (action) => _onContextAction(context, action),
+              boundingBox: _annotSelection.boundingBox,
+              renderWidth: renderWidth,
+              renderHeight: renderHeight,
+            );
+          },
+        ),
+      );
+    }
 
     return children;
   }
@@ -221,66 +313,105 @@ class AnnotationSelectionHandler extends GestureHandler {
     return Rect.fromLTRB(left, top, right, bottom);
   }
 
-  Offset _getContextMenuPosition(double scale, Rect firstLine, Rect lastLine, double renderWidth) {
-    final minTopPadding = 6.0;
-    final scaledMenuWidth = kContextMenuWidth / scale;
-    final scaledMenuHeight = kContextMenuHeight / scale;
-    final scaledHandleSize = 18.0 / scale;
-
-    final top = firstLine.top - scaledMenuHeight - scaledHandleSize - 4;
-    final finalTop = top > minTopPadding ? top : firstLine.bottom + scaledHandleSize + 4;
-
-    final centerLeft = (firstLine.left + lastLine.right - scaledMenuWidth) / 2;
-    double finalLeft = centerLeft;
-    if (centerLeft < 0) {
-      finalLeft = 0;
-    } else if (centerLeft + scaledMenuWidth > renderWidth) {
-      finalLeft = renderWidth - scaledMenuWidth;
-    }
-    return Offset(finalLeft, finalTop);
-  }
-
-  Future<void> _onAnnoContextAction(BuildContext context, AnnoContextAction action) async {
+  Future<void> _onContextAction(BuildContext context, MenuAction action) async {
     switch (action) {
-      case AnnoContextAction.kRemove:
-        if (_annotSelection.annotIndex != kIndexNotSet) {
-          final success = await controller.removeAnnotation(pageIndex, _annotSelection.annotIndex);
-          if (success) {
-            onPdfContentChanged();
+      case MenuAction.kDelete:
+        // 删除所有选中的高亮标注（不包括链接标注）
+        for (final annot in _annotSelection.annotations) {
+          if (annot.annotType == kPdfAnnotHighlight && annot.annotIndex != kIndexNotSet) {
+            await controller.removeAnnotation(pageIndex, annot.annotIndex);
           }
         }
+        onPdfContentChanged();
         clearSelection();
         break;
 
-      case AnnoContextAction.kStyle:
-        if (_annotSelection.annotIndex != kIndexNotSet) {
-          _showColorPicker(context);
+      case MenuAction.kEdit:
+        // 修改所有选中的高亮标注的颜色
+        final highlightAnnots = _annotSelection.annotations
+            .where((a) => a.annotType == kPdfAnnotHighlight && a.annotIndex != kIndexNotSet)
+            .toList();
+        if (highlightAnnots.isNotEmpty) {
+          _showColorPicker(context, highlightAnnots);
         }
+        break;
+
+      case MenuAction.kJump:
+        // 处理跳转操作
+        final linkAnnots = _annotSelection.annotations
+            .where((a) => a.annotType == kPdfAnnotLink && a.linkType == PdfLinkType.goto)
+            .toList();
+        if (linkAnnots.isNotEmpty) {
+          _handleLinkAction(linkAnnots.first);
+          clearSelection();
+        }
+        break;
+
+      case MenuAction.kOpenWebUrl:
+        // 处理打开URL操作
+        final linkAnnots = _annotSelection.annotations
+            .where((a) => a.annotType == kPdfAnnotLink && a.linkType == PdfLinkType.uri)
+            .toList();
+        if (linkAnnots.isNotEmpty) {
+          _handleLinkAction(linkAnnots.first);
+          clearSelection();
+        }
+        break;
+      default:
         break;
     }
   }
 
-  void _showColorPicker(BuildContext context) {
+  void _showColorPicker(BuildContext context, List<AnnotationInfo> highlightAnnots) {
     showModalBottomSheet(
       context: context,
       barrierColor: Colors.transparent,
       builder: (context) {
         return ColorPickerBottomSheet(
           onColorSelected: (highlightColor) async {
-            if (_annotSelection.annotIndex != kIndexNotSet) {
+            for (final annot in highlightAnnots) {
               await controller.updateAnnotationColor(
                 pageIndex,
-                _annotSelection.annotIndex,
+                annot.annotIndex,
                 r: highlightColor.r,
                 g: highlightColor.g,
                 b: highlightColor.b,
                 a: highlightColor.a,
               );
-              onPdfContentChanged();
             }
+            onPdfContentChanged();
           },
         );
       },
     );
+  }
+
+  /// 处理链接跳转
+  void _handleLinkAction(AnnotationInfo linkAnnot) {
+    if (linkAnnot.linkType == null) return;
+
+    switch (linkAnnot.linkType!) {
+      case PdfLinkType.goto:
+        final targetPage = linkAnnot.linkTarget as int?;
+        if (targetPage != null && targetPage >= 0 && targetPage < controller.pageCount) {
+          controller.tocState.onPageChanged?.call(targetPage);
+        }
+        break;
+
+      case PdfLinkType.uri:
+        final url = linkAnnot.linkTarget as String?;
+        if (url != null && url.isNotEmpty) {
+          _openUrl(url);
+        }
+        break;
+    }
+  }
+
+  /// 打开URL
+  Future<void> _openUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 }

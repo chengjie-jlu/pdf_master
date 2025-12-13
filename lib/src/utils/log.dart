@@ -21,8 +21,7 @@ class Log {
   // ANSI 重置代码
   static const String _reset = '\x1B[0m';
 
-  static void _log(LogLevel level, String tag, String message,
-      [Object? error, StackTrace? stackTrace]) {
+  static void _log(LogLevel level, String tag, String message, [Object? error, StackTrace? stackTrace]) {
     final formattedMessage = "${level.color}${level.label}/[$_brand-$tag]: $message$_reset";
 
     debugPrint(formattedMessage);

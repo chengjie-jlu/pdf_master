@@ -33,6 +33,7 @@ class _EditLayerState extends State<EditLayer> {
   late final TextSelectionHandler _textSelectionHandler;
   late final AnnotationSelectionHandler _annotationSelectionHandler;
   late final ImageSelectionHandler _imageSelectionHandler;
+  double _lastScale = 1.0;
 
   @override
   void initState() {
@@ -42,18 +43,18 @@ class _EditLayerState extends State<EditLayer> {
       controller: widget.controller,
       pageIndex: widget.index,
       pageSize: widget.pageSize,
-      getRenderWidth: () => widget.renderWidth,
-      getRenderHeight: () => widget.renderHeight,
+      renderWidth: widget.renderWidth,
+      renderHeight: widget.renderHeight,
       onPdfContentChanged: widget.onPdfContentChanged,
       onStateChanged: () => setState(() {}),
-    );
+    )..refreshAnnotationInfo();
 
     _textSelectionHandler = TextSelectionHandler(
       controller: widget.controller,
       pageIndex: widget.index,
       pageSize: widget.pageSize,
-      getRenderWidth: () => widget.renderWidth,
-      getRenderHeight: () => widget.renderHeight,
+      renderWidth: widget.renderWidth,
+      renderHeight: widget.renderHeight,
       onPdfContentChanged: widget.onPdfContentChanged,
       onStateChanged: () => setState(() {}),
       onHighlightCreated: _annotationSelectionHandler.selectAnnotationAtPosition,
@@ -64,25 +65,44 @@ class _EditLayerState extends State<EditLayer> {
       controller: widget.controller,
       pageIndex: widget.index,
       pageSize: widget.pageSize,
-      getRenderWidth: () => widget.renderWidth,
-      getRenderHeight: () => widget.renderHeight,
+      renderWidth: widget.renderWidth,
+      renderHeight: widget.renderHeight,
       onStateChanged: () => setState(() {}),
     );
 
     _handlers = [_imageSelectionHandler, _textSelectionHandler, _annotationSelectionHandler];
 
     widget.controller.editStateNotifier.addListener(_clearHandlersSelectionIfNeeded);
+    _lastScale = widget.controller.scaleNotifier.value;
+    widget.controller.scaleNotifier.addListener(_onScaleChanged);
+  }
+
+  @override
+  void didUpdateWidget(EditLayer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.index != widget.index) {
+      _annotationSelectionHandler.refreshAnnotationInfo();
+    }
   }
 
   @override
   void dispose() {
     super.dispose();
     widget.controller.editStateNotifier.removeListener(_clearHandlersSelectionIfNeeded);
+    widget.controller.scaleNotifier.removeListener(_onScaleChanged);
   }
 
   void _clearHandlersSelectionIfNeeded() {
     if (widget.controller.editStateNotifier.value != PdfEditState.kEdit) {
       _clearHandlersSelection();
+    }
+  }
+
+  void _onScaleChanged() {
+    final currentScale = widget.controller.scaleNotifier.value;
+    if (_lastScale != currentScale) {
+      _clearHandlersSelection();
+      _lastScale = currentScale;
     }
   }
 

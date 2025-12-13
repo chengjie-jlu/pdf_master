@@ -3,10 +3,7 @@ import 'dart:ui';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import 'package:pdf_master/pdf_master.dart';
-import 'package:pdf_master/src/core/pdf_controller.dart';
-import 'package:pdf_master/src/pdf/context/context_menu_constants.dart';
-import 'package:pdf_master/src/pdf/context/image_context_menu.dart';
-import 'package:pdf_master/src/pdf/handlers/gesture_handler.dart';
+import 'package:pdf_master/src/pdf/context/context_menu.dart';
 import 'package:pdf_master/src/utils/ctx_extension.dart';
 import 'dart:ui' as ui;
 
@@ -33,8 +30,8 @@ class ImageSelectionHandler extends GestureHandler {
   final PdfController controller;
   final int pageIndex;
   final Size pageSize;
-  final double Function() getRenderWidth;
-  final double Function() getRenderHeight;
+  final double renderWidth;
+  final double renderHeight;
   final VoidCallback onStateChanged;
 
   final _imageSelection = _ImageSelectionInfo();
@@ -44,8 +41,8 @@ class ImageSelectionHandler extends GestureHandler {
     required this.controller,
     required this.pageIndex,
     required this.pageSize,
-    required this.getRenderWidth,
-    required this.getRenderHeight,
+    required this.renderWidth,
+    required this.renderHeight,
     required this.onStateChanged,
   });
 
@@ -69,9 +66,6 @@ class ImageSelectionHandler extends GestureHandler {
 
     // 尝试选中图片
     final localPosition = details.localPosition;
-    final renderWidth = getRenderWidth();
-    final renderHeight = getRenderHeight();
-
     final pdfX = localPosition.dx / renderWidth * pageSize.width;
     final pdfY = pageSize.height - (localPosition.dy / renderHeight * pageSize.height);
 
@@ -105,7 +99,6 @@ class ImageSelectionHandler extends GestureHandler {
     }
 
     final children = <Widget>[];
-    final renderWidth = getRenderWidth();
     final boundingBox = _imageSelection.displayBound;
 
     // 虚线边框
@@ -137,16 +130,13 @@ class ImageSelectionHandler extends GestureHandler {
       ValueListenableBuilder(
         valueListenable: controller.scaleNotifier,
         builder: (context, scale, child) {
-          final menuPos = _getContextMenuPosition(scale, boundingBox, renderWidth);
-          return Positioned(
-            top: menuPos.dy,
-            left: menuPos.dx,
-            width: kContextMenuWidth,
-            child: ImageContextMenu(
-              scale: scale,
-              showContextMenu: true,
-              onAction: (action) => _onImageContextAction(context, action),
-            ),
+          return ContextMenu(
+            scale: scale,
+            showContextMenu: true,
+            actions: const [MenuAction.kView, MenuAction.kSave],
+            onAction: (action) => _onContextAction(context, action),
+            boundingBox: boundingBox,
+            renderWidth: renderWidth,
           );
         },
       ),
@@ -155,52 +145,17 @@ class ImageSelectionHandler extends GestureHandler {
     return children;
   }
 
-  Offset _getContextMenuPosition(double scale, Rect imageBound, double renderWidth) {
-    final renderHeight = getRenderHeight();
-    final minTopPadding = 6.0;
-    final minBottomPadding = 6.0;
-    final scaledMenuWidth = kContextMenuWidth / scale;
-    final scaledMenuHeight = kContextMenuHeight / scale;
-    final scaledHandleSize = 18.0 / scale;
-
-    // 尝试在图片上方显示菜单
-    final topPosition = imageBound.top - scaledMenuHeight - scaledHandleSize - 4;
-    // 尝试在图片下方显示菜单
-    final bottomPosition = imageBound.bottom + scaledHandleSize + 4;
-
-    // 判断菜单应该显示在上方还是下方
-    double finalTop;
-    if (topPosition > minTopPadding) {
-      // 上方有足够空间
-      finalTop = topPosition;
-    } else if (bottomPosition + scaledMenuHeight < renderHeight - minBottomPadding) {
-      // 下方有足够空间
-      finalTop = bottomPosition;
-    } else {
-      // 上下都没有足够空间，优先显示在图片内部顶部
-      finalTop = imageBound.top + minTopPadding;
-    }
-
-    final centerLeft = (imageBound.left + imageBound.right - scaledMenuWidth) / 2;
-    double finalLeft = centerLeft;
-    if (centerLeft < 0) {
-      finalLeft = 0;
-    } else if (centerLeft + scaledMenuWidth > renderWidth) {
-      finalLeft = renderWidth - scaledMenuWidth;
-    }
-    return Offset(finalLeft, finalTop);
-  }
-
-  Future<void> _onImageContextAction(BuildContext context, ImageContextAction action) async {
+  Future<void> _onContextAction(BuildContext context, MenuAction action) async {
     switch (action) {
-      case ImageContextAction.kView:
+      case MenuAction.kView:
         showImagePreview(context, _imageSelection.image?.clone());
         clearSelection();
         break;
-
-      case ImageContextAction.kSave:
+      case MenuAction.kSave:
         await _saveImageToGallery(_imageSelection.image);
         clearSelection();
+        break;
+      default:
         break;
     }
   }

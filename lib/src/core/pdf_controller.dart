@@ -124,14 +124,11 @@ class _CreateHighlightParams {
   _CreateHighlightParams(this.document, this.pageIndex, this.rects, this.r, this.g, this.b, this.a);
 }
 
-class _GetAnnotationAtPosParams {
+class _GetPageAnnotationsParams {
   final ffi.PdfDocument document;
   final int pageIndex;
-  final double x;
-  final double y;
-  final double tolerance;
 
-  _GetAnnotationAtPosParams(this.document, this.pageIndex, this.x, this.y, this.tolerance);
+  _GetPageAnnotationsParams(this.document, this.pageIndex);
 }
 
 class _RemoveAnnotationParams {
@@ -309,10 +306,13 @@ class PdfController {
   }
 
   Future<void> dispose() async {
-    scaleNotifier.dispose();
-    editStateNotifier.dispose();
     searchState.dispose();
     tocState.dispose();
+    
+    scaleNotifier.dispose();
+    currentPageIndexNotifier.dispose();
+    editStateNotifier.dispose();
+
     await pdfRenderWorker.executeInIsolate(_innerClose, _document);
   }
 
@@ -364,12 +364,19 @@ class PdfController {
     );
   }
 
-  /// 获取指定位置的标注信息（返回标注的QuadPoints和索引）
-  /// [tolerance] 检测容差，单位为 PDF 坐标，默认 8.0，增加容差可以让小标注更容易点击
-  Future<ffi_api.AnnotationInfo?> getAnnotationAtPosition(int pageIndex, double x, double y, {double tolerance = 8.0}) {
+  /// 获取页面的所有链接标注
+  Future<List<ffi_api.AnnotationInfo>> getPageLinks(int pageIndex) {
     return pdfRenderWorker.executeInIsolate(
-      _innerGetAnnotationAtPos,
-      _GetAnnotationAtPosParams(_document, pageIndex, x, y, tolerance),
+      _innerGetPageLinks,
+      _GetPageAnnotationsParams(_document, pageIndex),
+    );
+  }
+
+  /// 获取页面的所有高亮标注
+  Future<List<ffi_api.AnnotationInfo>> getPageHighlights(int pageIndex) {
+    return pdfRenderWorker.executeInIsolate(
+      _innerGetPageHighlights,
+      _GetPageAnnotationsParams(_document, pageIndex),
     );
   }
 
@@ -565,14 +572,12 @@ bool _innerCreateHighlight(_CreateHighlightParams params) {
   );
 }
 
-ffi_api.AnnotationInfo? _innerGetAnnotationAtPos(_GetAnnotationAtPosParams params) {
-  return ffi_api.getAnnotationAtPosition(
-    params.document,
-    params.pageIndex,
-    params.x,
-    params.y,
-    tolerance: params.tolerance,
-  );
+List<ffi_api.AnnotationInfo> _innerGetPageLinks(_GetPageAnnotationsParams params) {
+  return ffi_api.getPageLinks(params.document, params.pageIndex);
+}
+
+List<ffi_api.AnnotationInfo> _innerGetPageHighlights(_GetPageAnnotationsParams params) {
+  return ffi_api.getPageHighlights(params.document, params.pageIndex);
 }
 
 bool _innerRemoveAnnotation(_RemoveAnnotationParams params) {

@@ -3,7 +3,6 @@ import 'dart:ui' as ui;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:pdf_master/pdf_master.dart';
-import 'package:pdf_master/src/core/pdf_controller.dart';
 import 'package:pdf_master/src/utils/ctx_extension.dart';
 
 class PageSelector extends StatefulWidget {

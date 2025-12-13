@@ -66,7 +66,6 @@ final class Worker {
 
   Future<R> executeInIsolate<R, P>(WorkerFunction<R, P> func, P params) async {
     _currentRequestId = (_currentRequestId + 1) % _kMaxRequestCount;
-    Log.i(tag, "Execute in isolate, id = $_currentRequestId, params = $params");
     final req = _WorkRequest(_currentRequestId, func, params);
     final completer = Completer<R>();
     _queue[_currentRequestId] = completer;

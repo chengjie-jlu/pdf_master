@@ -35,7 +35,9 @@
     "fmtErr": "无法打开此文件",
     "inputPassword": "请输入密码",
     "needPassword": "此文件受密码保护",
-    "passwordErr": "密码错误"
+    "passwordErr": "密码错误",
+    "jump": "跳转",
+    "open": "打开"
   },
   "en": {
     "ok": "OK",
@@ -73,6 +75,8 @@
     "fmtErr": "Can't Open This File",
     "inputPassword": "Please enter password",
     "needPassword": "File Is Password Protected",
-    "passwordErr": "Wrong Password"
+    "passwordErr": "Wrong Password",
+    "jump": "Jump",
+    "open": "Open"
   }
 }

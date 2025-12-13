@@ -38,9 +38,7 @@ class _ColorPickerBottomSheetState extends State<ColorPickerBottomSheet> {
     return Container(
       decoration: BoxDecoration(
         color: context.pdfTheme.appBarBackgroundColor,
-        boxShadow: [
-          BoxShadow(blurRadius: 10, spreadRadius: 0.1, color: context.pdfTheme.shadowColor),
-        ],
+        boxShadow: [BoxShadow(blurRadius: 10, spreadRadius: 0.1, color: context.pdfTheme.shadowColor)],
         borderRadius: BorderRadius.only(topLeft: Radius.circular(12), topRight: Radius.circular(12)),
       ),
       padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),

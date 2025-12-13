@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:pdf_master/pdf_master.dart';
 import 'package:pdf_master/src/core/pdf_controller.dart';
 import 'package:pdf_master/src/pdf/edit_layer.dart';
-import 'package:pdf_master/src/pdf/handlers/gesture_handler.dart';
 
 import 'search/search_highlight_layer.dart';
 
@@ -61,6 +60,7 @@ class _PdfViewCoreState extends State<PdfViewCore> {
     super.dispose();
     widget.controller.editStateNotifier.removeListener(_refreshContent);
     PdfMaster.instance.darkModeNotifier.removeListener(_refreshContent);
+
     _releasePageBitmap();
     _releaseThumbBitmap();
   }
@@ -87,7 +87,7 @@ class _PdfViewCoreState extends State<PdfViewCore> {
   }
 
   void _refreshPageBitmap() async {
-    if(!mounted) return;
+    if (!mounted) return;
     final width = MediaQuery.devicePixelRatioOf(context) * widget.constraints.maxWidth;
     final newImage = await widget.controller.renderFullPage(index: widget.index, width: width.toInt());
     pageSize = widget.controller.getPageSizeAt(widget.index);

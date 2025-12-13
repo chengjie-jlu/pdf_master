@@ -9,6 +9,15 @@ import 'ffi_define.dart';
 
 const String _tag = 'FFI';
 
+/// PDF链接类型枚举
+enum PdfLinkType {
+  /// 内部跳转（跳转到指定页面）
+  goto,
+
+  /// 外部URL链接
+  uri,
+}
+
 void initLibrary() {
   final dylib = Platform.isAndroid ? DynamicLibrary.open("libpdfium.so") : DynamicLibrary.process();
   fpdfInitLibraryWithConfig = dylib.lookupFunction<NativeFPDFInitLibraryWithConfig, FPDFInitLibraryWithConfig>(
@@ -77,6 +86,24 @@ void initLibrary() {
   );
   fpdfSaveAsCopy = dylib.lookupFunction<NativeFPDFSaveAsCopy, FPDFSaveAsCopy>('FPDF_SaveAsCopy');
 
+  fpdfLinkGetLinkAtPoint = dylib.lookupFunction<NativeFPDFLinkGetLinkAtPoint, FPDFLinkGetLinkAtPoint>(
+    'FPDFLink_GetLinkAtPoint',
+  );
+  fpdfLinkGetDest = dylib.lookupFunction<NativeFPDFLinkGetDest, FPDFLinkGetDest>('FPDFLink_GetDest');
+  fpdfLinkGetAction = dylib.lookupFunction<NativeFPDFLinkGetAction, FPDFLinkGetAction>('FPDFLink_GetAction');
+  fpdfActionGetType = dylib.lookupFunction<NativeFPDFActionGetType, FPDFActionGetType>('FPDFAction_GetType');
+  fpdfActionGetDest = dylib.lookupFunction<NativeFPDFActionGetDest, FPDFActionGetDest>('FPDFAction_GetDest');
+  fpdfActionGetURIPath = dylib.lookupFunction<NativeFPDFActionGetURIPath, FPDFActionGetURIPath>(
+    'FPDFAction_GetURIPath',
+  );
+  fpdfDestGetDestPageIndex = dylib.lookupFunction<NativeFPDFDestGetDestPageIndex, FPDFDestGetDestPageIndex>(
+    'FPDFDest_GetDestPageIndex',
+  );
+  fpdfLinkGetAnnotRect = dylib.lookupFunction<NativeFPDFLinkGetAnnotRect, FPDFLinkGetAnnotRect>(
+    'FPDFLink_GetAnnotRect',
+  );
+  fpdfLinkEnumerate = dylib.lookupFunction<NativeFPDFLinkEnumerate, FPDFLinkEnumerate>('FPDFLink_Enumerate');
+
   fpdfBookmarkGetFirstChild = dylib.lookupFunction<NativeFPDFBookmarkGetFirstChild, FPDFBookmarkGetFirstChild>(
     'FPDFBookmark_GetFirstChild',
   );
@@ -87,9 +114,6 @@ void initLibrary() {
     'FPDFBookmark_GetTitle',
   );
   fpdfBookmarkGetDest = dylib.lookupFunction<NativeFPDFBookmarkGetDest, FPDFBookmarkGetDest>('FPDFBookmark_GetDest');
-  fpdfDestGetDestPageIndex = dylib.lookupFunction<NativeFPDFDestGetDestPageIndex, FPDFDestGetDestPageIndex>(
-    'FPDFDest_GetDestPageIndex',
-  );
 
   fpdfPageCountObjects = dylib.lookupFunction<NativeFPDFPageCountObjects, FPDFPageCountObjects>(
     'FPDFPage_CountObjects',
@@ -108,8 +132,12 @@ void initLibrary() {
       );
   fpdfBitmapGetWidth = dylib.lookupFunction<NativeFPDFBitmapGetWidth, FPDFBitmapGetWidth>('FPDFBitmap_GetWidth');
   fpdfBitmapGetHeight = dylib.lookupFunction<NativeFPDFBitmapGetHeight, FPDFBitmapGetHeight>('FPDFBitmap_GetHeight');
-  fpdfCreateNewDocument = dylib.lookupFunction<NativeFPDFCreateNewDocument, FPDFCreateNewDocument>('FPDF_CreateNewDocument');
-  fpdfImportPagesByIndex = dylib.lookupFunction<NativeFPDFImportPagesByIndex, FPDFImportPagesByIndex>('FPDF_ImportPagesByIndex');
+  fpdfCreateNewDocument = dylib.lookupFunction<NativeFPDFCreateNewDocument, FPDFCreateNewDocument>(
+    'FPDF_CreateNewDocument',
+  );
+  fpdfImportPagesByIndex = dylib.lookupFunction<NativeFPDFImportPagesByIndex, FPDFImportPagesByIndex>(
+    'FPDF_ImportPagesByIndex',
+  );
   fpdfPageSetRotation = dylib.lookupFunction<NativeFPDFPageSetRotation, FPDFPageSetRotation>('FPDFPage_SetRotation');
   fpdfPageGetRotation = dylib.lookupFunction<NativeFPDFPageGetRotation, FPDFPageGetRotation>('FPDFPage_GetRotation');
   fpdfPageDelete = dylib.lookupFunction<NativeFPDFPageDelete, FPDFPageDelete>('FPDFPage_Delete');
@@ -609,34 +637,128 @@ bool createHighlightAnnotation(
 class AnnotationInfo {
   final int annotIndex;
   final List<ui.Rect> rects;
+  final int annotType; // 标注类型
+  final PdfLinkType? linkType; // 链接类型，仅当annotType为kPdfAnnotLink时有效
+  final dynamic linkTarget; // 链接目标：对于goto是页面索引(int)，对于uri是URL字符串(String)
 
-  AnnotationInfo({required this.annotIndex, required this.rects});
+  AnnotationInfo({
+    required this.annotIndex,
+    required this.rects,
+    required this.annotType,
+    this.linkType,
+    this.linkTarget,
+  });
 }
 
-AnnotationInfo? getAnnotationAtPosition(
+/// 获取页面的所有链接标注
+List<AnnotationInfo> getPageLinks(
   PdfDocument pdfDoc,
   int pageIndex,
-  double x,
-  double y, {
-  double tolerance = 8.0,
-}) {
+) {
   if (pdfDoc.document == nullptr) {
-    return null;
+    return [];
   }
 
   final page = fpdfLoadPage(pdfDoc.document, pageIndex);
   if (page == nullptr) {
     Log.e(_tag, "Can't Load Page For Index: $pageIndex");
-    return null;
+    return [];
   }
 
+  final results = <AnnotationInfo>[];
+  final startPosPtr = calloc<Int32>();
+  final linkPtr = calloc<FPDFLink>();
+  startPosPtr.value = 0;
+
+  // 枚举页面上的所有链接
+  while (fpdfLinkEnumerate(page, startPosPtr, linkPtr) != 0) {
+    final link = linkPtr.value;
+    if (link == nullptr) continue;
+
+    // 获取链接的矩形区域
+    final rectPtr = calloc<FSRectF>();
+    final getRectResult = fpdfLinkGetAnnotRect(link, rectPtr);
+    final rects = <ui.Rect>[];
+
+    if (getRectResult != 0) {
+      final rect = rectPtr.ref;
+      rects.add(ui.Rect.fromLTRB(rect.left, rect.bottom, rect.right, rect.top));
+    }
+    calloc.free(rectPtr);
+
+    if (rects.isEmpty) continue;
+
+    // 获取链接信息
+    PdfLinkType? linkType;
+    dynamic linkTarget;
+
+    // 先尝试获取目标页面
+    final dest = fpdfLinkGetDest(pdfDoc.document, link);
+    if (dest != nullptr) {
+      linkType = PdfLinkType.goto;
+      linkTarget = fpdfDestGetDestPageIndex(pdfDoc.document, dest);
+    } else {
+      // 如果没有目标页面，尝试获取action
+      final action = fpdfLinkGetAction(link);
+      if (action != nullptr) {
+        final actionType = fpdfActionGetType(action);
+        if (actionType == kPdfActionGoto) {
+          linkType = PdfLinkType.goto;
+          final actionDest = fpdfActionGetDest(pdfDoc.document, action);
+          if (actionDest != nullptr) {
+            linkTarget = fpdfDestGetDestPageIndex(pdfDoc.document, actionDest);
+          }
+        } else if (actionType == kPdfActionUri) {
+          linkType = PdfLinkType.uri;
+          // 获取URI长度
+          final uriLength = fpdfActionGetURIPath(pdfDoc.document, action, nullptr, 0);
+          if (uriLength > 0) {
+            final buffer = calloc<Uint8>(uriLength);
+            fpdfActionGetURIPath(pdfDoc.document, action, buffer.cast<Void>(), uriLength);
+            linkTarget = buffer.cast<Utf8>().toDartString();
+            calloc.free(buffer);
+          }
+        }
+      }
+    }
+
+    if (linkType != null) {
+      results.add(
+        AnnotationInfo(
+          annotIndex: -1, // 链接标注没有annotIndex
+          rects: rects,
+          annotType: kPdfAnnotLink,
+          linkType: linkType,
+          linkTarget: linkTarget,
+        ),
+      );
+    }
+  }
+
+  // 释放分配的内存
+  calloc.free(startPosPtr);
+  calloc.free(linkPtr);
+  fpdfClosePage(page);
+  return results;
+}
+
+/// 获取页面的所有高亮标注
+List<AnnotationInfo> getPageHighlights(
+  PdfDocument pdfDoc,
+  int pageIndex,
+) {
+  if (pdfDoc.document == nullptr) {
+    return [];
+  }
+
+  final page = fpdfLoadPage(pdfDoc.document, pageIndex);
+  if (page == nullptr) {
+    Log.e(_tag, "Can't Load Page For Index: $pageIndex");
+    return [];
+  }
+
+  final results = <AnnotationInfo>[];
   final annotCount = fpdfPageGetAnnotCount(page);
-  if (annotCount <= 0) {
-    fpdfClosePage(page);
-    return null;
-  }
-
-  AnnotationInfo? result;
 
   for (int i = 0; i < annotCount; i++) {
     final annot = fpdfPageGetAnnot(page, i);
@@ -644,16 +766,13 @@ AnnotationInfo? getAnnotationAtPosition(
       continue;
     }
     final subtype = fpdfAnnotGetSubtype(annot);
+
+    // 处理高亮标注
     if (subtype == kPdfAnnotHighlight) {
       final quadCount = fpdfAnnotCountAttachmentPoints(annot);
 
       if (quadCount > 0) {
         final rects = <ui.Rect>[];
-        double minLeft = double.infinity;
-        double maxRight = double.negativeInfinity;
-        double minBottom = double.infinity;
-        double maxTop = double.negativeInfinity;
-
         for (int j = 0; j < quadCount; j++) {
           final quadPoints = calloc<FSQuadPointsF>();
           final getResult = fpdfAnnotGetAttachmentPoints(annot, j, quadPoints);
@@ -666,31 +785,20 @@ AnnotationInfo? getAnnotationAtPosition(
 
             final rect = ui.Rect.fromLTRB(left, bottom, right, top);
             rects.add(rect);
-
-            if (left < minLeft) minLeft = left;
-            if (right > maxRight) maxRight = right;
-            if (bottom < minBottom) minBottom = bottom;
-            if (top > maxTop) maxTop = top;
           }
           calloc.free(quadPoints);
         }
 
-        // 添加容差范围，使标注更容易点击
-        if (rects.isNotEmpty &&
-            x >= minLeft - tolerance &&
-            x <= maxRight + tolerance &&
-            y >= minBottom - tolerance &&
-            y <= maxTop + tolerance) {
-          result = AnnotationInfo(annotIndex: i, rects: rects);
-          fpdfPageCloseAnnot(annot);
-          break;
+        if (rects.isNotEmpty) {
+          results.add(AnnotationInfo(annotIndex: i, rects: rects, annotType: subtype));
         }
       }
     }
+
     fpdfPageCloseAnnot(annot);
   }
   fpdfClosePage(page);
-  return result;
+  return results;
 }
 
 bool removeAnnotation(PdfDocument pdfDoc, int pageIndex, int annotIndex) {
@@ -1034,13 +1142,7 @@ bool importPages(PdfDocument destDoc, PdfDocument srcDoc, List<int> pageIndices,
     indicesPtr[i] = pageIndices[i];
   }
 
-  final result = fpdfImportPagesByIndex(
-    destDoc.document,
-    srcDoc.document,
-    indicesPtr,
-    pageIndices.length,
-    insertIndex,
-  );
+  final result = fpdfImportPagesByIndex(destDoc.document, srcDoc.document, indicesPtr, pageIndices.length, insertIndex);
 
   calloc.free(indicesPtr);
   return result != 0;
@@ -1123,11 +1225,7 @@ class ImageObjectBasicInfo {
   final int objectIndex;
   final ui.Rect bounds;
 
-  ImageObjectBasicInfo({
-    required this.pageIndex,
-    required this.objectIndex,
-    required this.bounds,
-  });
+  ImageObjectBasicInfo({required this.pageIndex, required this.objectIndex, required this.bounds});
 }
 
 /// 获取PDF文档中所有图片对象的基本信息
@@ -1163,11 +1261,7 @@ List<ImageObjectBasicInfo> getAllImageObjects(PdfDocument pdfDoc) {
           final boundsResult = fpdfPageObjGetBounds(pageObject, left, bottom, right, top);
           if (boundsResult != 0) {
             final bounds = ui.Rect.fromLTRB(left.value, bottom.value, right.value, top.value);
-            result.add(ImageObjectBasicInfo(
-              pageIndex: pageIndex,
-              objectIndex: i,
-              bounds: bounds,
-            ));
+            result.add(ImageObjectBasicInfo(pageIndex: pageIndex, objectIndex: i, bounds: bounds));
           }
 
           calloc.free(left);
@@ -1185,11 +1279,7 @@ List<ImageObjectBasicInfo> getAllImageObjects(PdfDocument pdfDoc) {
 }
 
 /// 根据页面索引和对象索引获取图片对象（返回位图数据，需要在主线程转换为 ui.Image）
-ImageObjectInfo? getImageObjectByIndex(
-  PdfDocument pdfDoc,
-  int pageIndex,
-  int objectIndex,
-) {
+ImageObjectInfo? getImageObjectByIndex(PdfDocument pdfDoc, int pageIndex, int objectIndex) {
   if (pdfDoc.document == nullptr) {
     return null;
   }
@@ -1228,7 +1318,7 @@ ImageObjectInfo? getImageObjectByIndex(
   final boundsResult = fpdfPageObjGetBounds(pageObject, left, bottom, right, top);
   if (boundsResult != 0) {
     final bounds = ui.Rect.fromLTRB(left.value, bottom.value, right.value, top.value);
-    
+
     // 获取图片位图
     final bitmap = fpdfImageObjGetRenderedBitmap(pdfDoc.document, page, pageObject);
     int width = 0;

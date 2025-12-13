@@ -40,7 +40,7 @@ enum ToolAction {
   }
 }
 
-class ToolActions{
+class ToolActions {
   final List<AdvancedFeature> features;
   final ValueChanged<ToolAction> onToolAction;
   const ToolActions({required this.features, required this.onToolAction});
@@ -51,6 +51,7 @@ class ToolActions{
     }
     return null;
   }
+
   List<ToolAction> getToolActions() {
     final actions = [ToolAction.kToc, ToolAction.kRotate, ToolAction.kPageMode, ToolAction.kSearch];
     if (features.isNotEmpty) {

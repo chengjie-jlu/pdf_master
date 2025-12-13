@@ -50,6 +50,13 @@ const int kPdfAnnotAppearanceModeNormal = 0;
 const int kPdfAnnotAppearanceModeRollover = 1;
 const int kPdfAnnotAppearanceModeDown = 2;
 
+// PDF Action Types
+const int kPdfActionUnsupported = 0;
+const int kPdfActionGoto = 1;
+const int kPdfActionRemoteGoto = 2;
+const int kPdfActionUri = 3;
+const int kPdfActionLaunch = 4;
+
 const int kPdfRenderFlagNone = 0;
 const int kPdfRenderFlagAnnot = 0x01; // 渲染注解
 const int kPdfRenderFlagLcdText = 0x02; // LCD 优化文本
@@ -61,7 +68,6 @@ const int kPdfRenderFlagLimitImageCache = 0x200; // 限制图像缓存
 const int kPdfRenderFlagForceHalftone = 0x400; // 强制半色调
 const int kPdfRenderFlagPrinting = 0x800; // 打印模式
 const int kPdfRenderFlagReverseByteOrder = 0x10; // 反转字节序
-
 
 const int kPdfRenderReady = 0;
 const int kPdfRenderToBeContinued = 1;
@@ -86,6 +92,9 @@ typedef FPDFAnnotation = Pointer<Void>;
 typedef FPDFSchHandle = Pointer<Void>;
 typedef FPDFBookmark = Pointer<Void>;
 typedef FPDFPageObject = Pointer<Void>;
+typedef FPDFLink = Pointer<Void>;
+typedef FPDFAction = Pointer<Void>;
+typedef FPDFDest = Pointer<Void>;
 
 final class FSSizeF extends Struct {
   @Float()
@@ -119,6 +128,20 @@ final class FSQuadPointsF extends Struct {
 
   @Float()
   external double y4;
+}
+
+final class FSRectF extends Struct {
+  @Float()
+  external double left;
+
+  @Float()
+  external double top;
+
+  @Float()
+  external double right;
+
+  @Float()
+  external double bottom;
 }
 
 final class FPDFLibraryConfig extends Struct {
@@ -197,7 +220,6 @@ typedef NativeFPDFBookmarkGetFirstChild = FPDFBookmark Function(FPDFDocument, FP
 typedef NativeFPDFBookmarkGetNextSibling = FPDFBookmark Function(FPDFDocument, FPDFBookmark);
 typedef NativeFPDFBookmarkGetTitle = Size Function(FPDFBookmark, Pointer<Void>, Size);
 typedef NativeFPDFBookmarkGetDest = Pointer<Void> Function(FPDFDocument, FPDFBookmark);
-typedef NativeFPDFDestGetDestPageIndex = Int32 Function(FPDFDocument, Pointer<Void>);
 typedef NativeFPDFPageCreateAnnot = FPDFAnnotation Function(FPDFPage, Int32);
 typedef NativeFPDFPageCloseAnnot = Void Function(FPDFAnnotation);
 typedef NativeFPDFAnnotSetColor = Int32 Function(FPDFAnnotation, Int32, Uint32, Uint32, Uint32, Uint32);
@@ -211,10 +233,20 @@ typedef NativeFPDFAnnotGetSubtype = Int32 Function(FPDFAnnotation);
 typedef NativeFPDFAnnotCountAttachmentPoints = Size Function(FPDFAnnotation);
 typedef NativeFPDFAnnotGetAttachmentPoints = Int32 Function(FPDFAnnotation, Size, Pointer<FSQuadPointsF>);
 typedef NativeFPDFPageRemoveAnnot = Int32 Function(FPDFPage, Int32);
+typedef NativeFPDFLinkGetLinkAtPoint = FPDFLink Function(FPDFPage, Double, Double);
+typedef NativeFPDFLinkGetDest = FPDFDest Function(FPDFDocument, FPDFLink);
+typedef NativeFPDFLinkGetAction = FPDFAction Function(FPDFLink);
+typedef NativeFPDFActionGetType = Uint32 Function(FPDFAction);
+typedef NativeFPDFActionGetDest = FPDFDest Function(FPDFDocument, FPDFAction);
+typedef NativeFPDFActionGetURIPath = Uint32 Function(FPDFDocument, FPDFAction, Pointer<Void>, Uint32);
+typedef NativeFPDFDestGetDestPageIndex = Int32 Function(FPDFDocument, FPDFDest);
+typedef NativeFPDFLinkGetAnnotRect = Int32 Function(FPDFLink, Pointer<FSRectF>);
+typedef NativeFPDFLinkEnumerate = Int32 Function(FPDFPage, Pointer<Int32>, Pointer<FPDFLink>);
 typedef NativeFPDFPageCountObjects = Int32 Function(FPDFPage);
 typedef NativeFPDFPageGetObject = FPDFPageObject Function(FPDFPage, Int32);
 typedef NativeFPDFPageObjGetType = Int32 Function(FPDFPageObject);
-typedef NativeFPDFPageObjGetBounds = Int32 Function(FPDFPageObject, Pointer<Float>, Pointer<Float>, Pointer<Float>, Pointer<Float>);
+typedef NativeFPDFPageObjGetBounds =
+    Int32 Function(FPDFPageObject, Pointer<Float>, Pointer<Float>, Pointer<Float>, Pointer<Float>);
 typedef NativeFPDFImageObjGetBitmap = FPDFBitmap Function(FPDFPageObject);
 typedef NativeFPDFImageObjGetRenderedBitmap = FPDFBitmap Function(FPDFDocument, FPDFPage, FPDFPageObject);
 typedef NativeFPDFBitmapGetWidth = Int32 Function(FPDFBitmap);
@@ -289,25 +321,34 @@ typedef FPDFTextFindClose = void Function(FPDFSchHandle);
 typedef FPDFBookmarkGetFirstChild = FPDFBookmark Function(FPDFDocument, FPDFBookmark);
 typedef FPDFBookmarkGetNextSibling = FPDFBookmark Function(FPDFDocument, FPDFBookmark);
 typedef FPDFBookmarkGetTitle = int Function(FPDFBookmark, Pointer<Void>, int);
-typedef FPDFDestGetDestPageIndex = int Function(FPDFDocument, Pointer<Void>);
 typedef FPDFBookmarkGetDest = Pointer<Void> Function(FPDFDocument, FPDFBookmark);
 typedef FPDFPageCreateAnnot = FPDFAnnotation Function(FPDFPage, int);
 typedef FPDFPageCloseAnnot = void Function(FPDFAnnotation);
 typedef FPDFAnnotSetColor = int Function(FPDFAnnotation, int, int, int, int, int);
 typedef FPDFAnnotSetAP = int Function(FPDFAnnotation, int, Pointer<Uint16>);
 typedef FPDFAnnotAppendAttachmentPoints = int Function(FPDFAnnotation, Pointer<FSQuadPointsF>);
+typedef FPDFAnnotGetAttachmentPoints = int Function(FPDFAnnotation, int, Pointer<FSQuadPointsF>);
 typedef FPDFAnnotSetFlags = int Function(FPDFAnnotation, int);
+typedef FPDFLinkGetLinkAtPoint = FPDFLink Function(FPDFPage, double, double);
+typedef FPDFLinkGetDest = FPDFDest Function(FPDFDocument, FPDFLink);
+typedef FPDFLinkGetAction = FPDFAction Function(FPDFLink);
+typedef FPDFActionGetType = int Function(FPDFAction);
+typedef FPDFActionGetDest = FPDFDest Function(FPDFDocument, FPDFAction);
+typedef FPDFActionGetURIPath = int Function(FPDFDocument, FPDFAction, Pointer<Void>, int);
+typedef FPDFDestGetDestPageIndex = int Function(FPDFDocument, FPDFDest);
+typedef FPDFLinkGetAnnotRect = int Function(FPDFLink, Pointer<FSRectF>);
+typedef FPDFLinkEnumerate = int Function(FPDFPage, Pointer<Int32>, Pointer<FPDFLink>);
 typedef FPDFPageGenerateContent = int Function(FPDFPage);
 typedef FPDFPageGetAnnotCount = int Function(FPDFPage);
 typedef FPDFPageGetAnnot = FPDFAnnotation Function(FPDFPage, int);
 typedef FPDFAnnotGetSubtype = int Function(FPDFAnnotation);
 typedef FPDFAnnotCountAttachmentPoints = int Function(FPDFAnnotation);
-typedef FPDFAnnotGetAttachmentPoints = int Function(FPDFAnnotation, int, Pointer<FSQuadPointsF>);
 typedef FPDFPageRemoveAnnot = int Function(FPDFPage, int);
 typedef FPDFPageCountObjects = int Function(FPDFPage);
 typedef FPDFPageGetObject = FPDFPageObject Function(FPDFPage, int);
 typedef FPDFPageObjGetType = int Function(FPDFPageObject);
-typedef FPDFPageObjGetBounds = int Function(FPDFPageObject, Pointer<Float>, Pointer<Float>, Pointer<Float>, Pointer<Float>);
+typedef FPDFPageObjGetBounds =
+    int Function(FPDFPageObject, Pointer<Float>, Pointer<Float>, Pointer<Float>, Pointer<Float>);
 typedef FPDFImageObjGetBitmap = FPDFBitmap Function(FPDFPageObject);
 typedef FPDFImageObjGetRenderedBitmap = FPDFBitmap Function(FPDFDocument, FPDFPage, FPDFPageObject);
 typedef FPDFBitmapGetWidth = int Function(FPDFBitmap);
@@ -356,7 +397,6 @@ late FPDFBookmarkGetFirstChild fpdfBookmarkGetFirstChild;
 late FPDFBookmarkGetNextSibling fpdfBookmarkGetNextSibling;
 late FPDFBookmarkGetTitle fpdfBookmarkGetTitle;
 late FPDFBookmarkGetDest fpdfBookmarkGetDest;
-late FPDFDestGetDestPageIndex fpdfDestGetDestPageIndex;
 
 late FPDFPageCreateAnnot fpdfPageCreateAnnot;
 late FPDFPageCloseAnnot fpdfPageCloseAnnot;
@@ -372,6 +412,15 @@ late FPDFAnnotCountAttachmentPoints fpdfAnnotCountAttachmentPoints;
 late FPDFAnnotGetAttachmentPoints fpdfAnnotGetAttachmentPoints;
 late FPDFPageRemoveAnnot fpdfPageRemoveAnnot;
 late FPDFSaveAsCopy fpdfSaveAsCopy;
+late FPDFLinkGetLinkAtPoint fpdfLinkGetLinkAtPoint;
+late FPDFLinkGetDest fpdfLinkGetDest;
+late FPDFLinkGetAction fpdfLinkGetAction;
+late FPDFActionGetType fpdfActionGetType;
+late FPDFActionGetDest fpdfActionGetDest;
+late FPDFActionGetURIPath fpdfActionGetURIPath;
+late FPDFDestGetDestPageIndex fpdfDestGetDestPageIndex;
+late FPDFLinkGetAnnotRect fpdfLinkGetAnnotRect;
+late FPDFLinkEnumerate fpdfLinkEnumerate;
 
 late FPDFPageCountObjects fpdfPageCountObjects;
 late FPDFPageGetObject fpdfPageGetObject;

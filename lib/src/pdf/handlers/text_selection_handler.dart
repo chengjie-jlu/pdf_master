@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:pdf_master/src/core/pdf_controller.dart';
-import 'package:pdf_master/src/pdf/context/context_menu_constants.dart';
-import 'package:pdf_master/src/pdf/context/text_context_menu.dart';
+import 'package:pdf_master/src/pdf/context/context_menu.dart';
 import 'package:pdf_master/src/pdf/handlers/gesture_handler.dart';
 import 'package:pdf_master/src/utils/ctx_extension.dart';
 
@@ -24,6 +23,25 @@ class _TextSelectionInfo {
 
   Rect get lastLine => displayBounds.last;
 
+  /// 获取整个选中区域的边界框
+  Rect get boundingBox {
+    if (displayBounds.isEmpty) return Rect.zero;
+
+    double left = double.infinity;
+    double top = double.infinity;
+    double right = double.negativeInfinity;
+    double bottom = double.negativeInfinity;
+
+    for (final rect in displayBounds) {
+      if (rect.left < left) left = rect.left;
+      if (rect.top < top) top = rect.top;
+      if (rect.right > right) right = rect.right;
+      if (rect.bottom > bottom) bottom = rect.bottom;
+    }
+
+    return Rect.fromLTRB(left, top, right, bottom);
+  }
+
   bool get hasSelection => displayBounds.isNotEmpty;
 
   void clear() {
@@ -38,8 +56,8 @@ class TextSelectionHandler extends GestureHandler {
   final PdfController controller;
   final int pageIndex;
   final Size pageSize;
-  final double Function() getRenderWidth;
-  final double Function() getRenderHeight;
+  final double renderWidth;
+  final double renderHeight;
   final VoidCallback onPdfContentChanged;
   final VoidCallback onStateChanged;
   final void Function(Offset position) onHighlightCreated;
@@ -56,8 +74,8 @@ class TextSelectionHandler extends GestureHandler {
     required this.controller,
     required this.pageIndex,
     required this.pageSize,
-    required this.getRenderWidth,
-    required this.getRenderHeight,
+    required this.renderWidth,
+    required this.renderHeight,
     required this.onHighlightCreated,
     required this.onPdfContentChanged,
     required this.onStateChanged,
@@ -88,8 +106,6 @@ class TextSelectionHandler extends GestureHandler {
   @override
   Future<GestureHandleResult> handleLongPress(LongPressStartDetails details) async {
     final localPosition = details.localPosition;
-    final renderWidth = getRenderWidth();
-    final renderHeight = getRenderHeight();
 
     final leftX = (localPosition.dx - _longPressSelectionRange).clamp(0.0, renderWidth);
     final rightX = (localPosition.dx + _longPressSelectionRange).clamp(0.0, renderWidth);
@@ -213,7 +229,6 @@ class TextSelectionHandler extends GestureHandler {
     }
 
     final children = <Widget>[];
-    final renderWidth = getRenderWidth();
 
     // 高亮区域
     children.addAll(
@@ -250,21 +265,14 @@ class TextSelectionHandler extends GestureHandler {
       ValueListenableBuilder(
         valueListenable: controller.scaleNotifier,
         builder: (context, scale, child) {
-          final menuPos = _getContextMenuPosition(
-            scale,
-            _textSelection.firstLine,
-            _textSelection.lastLine,
-            renderWidth,
-          );
-          return Positioned(
-            top: menuPos.dy,
-            left: menuPos.dx,
-            width: kContextMenuWidth,
-            child: TextContextMenu(
-              scale: scale,
-              showContextMenu: _showTextContextMenu,
-              onAction: (action) => _onTextContextAction(context, action),
-            ),
+          return ContextMenu(
+            scale: scale,
+            showContextMenu: _showTextContextMenu,
+            actions: const [MenuAction.kCopy, MenuAction.kHighlight],
+            onAction: (action) => _onContextAction(context, action),
+            boundingBox: _textSelection.boundingBox,
+            renderWidth: renderWidth,
+            renderHeight: renderHeight,
           );
         },
       ),
@@ -277,9 +285,6 @@ class TextSelectionHandler extends GestureHandler {
     if (startIndex < 0 || endIndex < 0 || startIndex > endIndex) {
       return;
     }
-
-    final renderWidth = getRenderWidth();
-    final renderHeight = getRenderHeight();
 
     _textSelection.startCharIndex = startIndex;
     _textSelection.endCharIndex = endIndex;
@@ -339,29 +344,7 @@ class TextSelectionHandler extends GestureHandler {
     return mergedRects;
   }
 
-  Offset _getContextMenuPosition(double scale, Rect firstLine, Rect lastLine, double renderWidth) {
-    final minTopPadding = 6.0;
-    final scaledMenuWidth = kContextMenuWidth / scale;
-    final scaledMenuHeight = kContextMenuHeight / scale;
-    final scaledHandleSize = _handleCircleSize / scale;
-
-    final top = firstLine.top - scaledMenuHeight - scaledHandleSize - 4;
-    final finalTop = top > minTopPadding ? top : firstLine.bottom + scaledHandleSize + 4;
-
-    final centerLeft = (firstLine.left + lastLine.right - scaledMenuWidth) / 2;
-    double finalLeft = centerLeft;
-    if (centerLeft < 0) {
-      finalLeft = 0;
-    } else if (centerLeft + scaledMenuWidth > renderWidth) {
-      finalLeft = renderWidth - scaledMenuWidth;
-    }
-    return Offset(finalLeft, finalTop);
-  }
-
   Future<int> _getCharIndexAtScreenPosition(Offset screenPos) async {
-    final renderWidth = getRenderWidth();
-    final renderHeight = getRenderHeight();
-
     final pdfX = screenPos.dx / renderWidth * pageSize.width;
     final pdfY = pageSize.height - (screenPos.dy / renderHeight * pageSize.height);
 
@@ -418,27 +401,24 @@ class TextSelectionHandler extends GestureHandler {
     _rightHandleInitialPos = newRightPos;
   }
 
-  Future<void> _onTextContextAction(BuildContext context, TextContextAction action) async {
+  Future<void> _onContextAction(BuildContext context, MenuAction action) async {
     switch (action) {
-      case TextContextAction.kCopy:
+      case MenuAction.kCopy:
         if (_textSelection.startCharIndex >= 0 && _textSelection.endCharIndex >= 0) {
           final count = _textSelection.endCharIndex - _textSelection.startCharIndex + 1;
           final selectedText = await controller.getTextRange(pageIndex, _textSelection.startCharIndex, count);
 
           await Clipboard.setData(ClipboardData(text: selectedText ?? ""));
           if (context.mounted) {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text(context.localizations['textCopied']), duration: Duration(seconds: 2)));
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(context.localizations['textCopied']), duration: Duration(seconds: 2)),
+            );
           }
         }
         break;
 
-      case TextContextAction.kHighlight:
+      case MenuAction.kHighlight:
         if (_textSelection.displayBounds.isNotEmpty) {
-          final renderWidth = getRenderWidth();
-          final renderHeight = getRenderHeight();
-
           final pdfRects = _textSelection.displayBounds.map((displayRect) {
             final left = displayRect.left / renderWidth * pageSize.width;
             final top = pageSize.height - (displayRect.bottom / renderHeight * pageSize.height);
@@ -456,15 +436,16 @@ class TextSelectionHandler extends GestureHandler {
 
           final success = controller.createHighlight(pageIndex, pdfRects, r: 255, g: 255, b: 0, a: 100);
           success.then((value) {
-            if (value) {
+            if (value && context.mounted) {
               onPdfContentChanged();
               onHighlightCreated(centerPosition);
             }
           });
         }
         break;
+      default:
+        break;
     }
-
     clearSelection();
   }
 }

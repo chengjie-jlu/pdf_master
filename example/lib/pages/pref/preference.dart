@@ -153,7 +153,6 @@ class PreferenceSegmentedControl extends StatelessWidget {
   }
 }
 
-
 class PreferenceText extends StatelessWidget {
   final String title;
   final VoidCallback onTap;
