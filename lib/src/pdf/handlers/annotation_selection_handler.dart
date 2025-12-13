@@ -8,7 +8,6 @@ import 'package:pdf_master/src/core/pdf_ffi_api.dart';
 import 'package:pdf_master/src/pdf/context/context_menu.dart';
 import 'package:pdf_master/src/pdf/context/color_picker.dart';
 import 'package:pdf_master/src/pdf/handlers/gesture_handler.dart';
-import 'package:pdf_master/src/utils/log.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 const int kIndexNotSet = -1;

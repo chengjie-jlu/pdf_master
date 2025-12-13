@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import 'package:pdf_master/pdf_master.dart';
+import 'package:pdf_master/src/core/pdf_controller.dart';
 import 'package:pdf_master/src/pdf/context/context_menu.dart';
 import 'package:pdf_master/src/utils/ctx_extension.dart';
 import 'dart:ui' as ui;
@@ -61,6 +62,11 @@ class ImageSelectionHandler extends GestureHandler {
   Future<GestureHandleResult> handleTap(TapUpDetails details) async {
     if (_imageSelection.hasSelection) {
       clearSelection();
+      return GestureHandleResult.handled;
+    }
+
+    // enable image selection only in edit mode.
+    if (controller.editStateNotifier.value != PdfEditState.kEdit) {
       return GestureHandleResult.handled;
     }
 
